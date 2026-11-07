@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rüzgar Fizibilite</title>
+<style>
+  /* Uygulama Streamlit Community Cloud'da çalışır; bu sayfa onu tam ekran gösterir. */
+  :root { --bg: #f3f4f3; --text: #1c2422; --muted: #56625e; --line: #d5d9d6; --accent: #0e6b5a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+               font: 14px/1.4 "Segoe UI", system-ui, sans-serif; }
+  .bar { height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+         padding: 0 16px; border-bottom: 1px solid var(--line); background: #fbfbfa; }
+  .bar b { font-weight: 600; }
+  .bar span { color: var(--muted); font-size: 12px; }
+  .bar a { color: var(--accent); text-decoration: none; font-weight: 500; white-space: nowrap; }
+  iframe { display: block; width: 100%; height: calc(100% - 40px); border: 0; }
+  @media (max-width: 600px) { .bar span { display: none; } }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <div><b>Rüzgar Enerjisi Fizibilite</b> <span>İzmir Bakırçay Üniversitesi, EEM Rüzgar Enerjisi dersi</span></div>
+    <a id="open" href="#" target="_blank" rel="noopener">Yeni sekmede aç</a>
+  </div>
+  <iframe id="app" title="Rüzgar Fizibilite uygulaması" allow="clipboard-write"></iframe>
+<script>
+  // Streamlit Cloud adresi (dağıtımda seçilen alt alan adı)
+  const APP = "https://ruzgar-gulu.streamlit.app";
+  document.getElementById("app").src = APP + "/?embed=true&ornek=1";
+  document.getElementById("open").href = APP + "/?ornek=1";
+</script>
+</body>
+</html>
