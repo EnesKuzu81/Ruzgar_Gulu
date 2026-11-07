@@ -37,6 +37,7 @@ st.markdown("""
 html, body, [class*="css"], .stMarkdown, .stTextInput, .stNumberInput, .stSelectbox, button { font-family: "IBM Plex Sans", sans-serif; }
 #MainMenu, footer, [data-testid="stMainMenu"], [data-testid="stAppDeployButton"], [data-testid="stDecoration"] { display: none; }
 [data-testid="stHeader"] { background: transparent; }
+[data-stale="true"] { opacity: 1 !important; transition: none !important; }   /* yeniden hesapta ekran soluklaşmasın */
 .block-container { padding-top: 1.6rem; max-width: 1400px; }
 [data-testid="stSidebar"] { border-right: 1px solid #d5d9d6; }
 [data-testid="stSidebar"] h3 { font-size: 0.8rem; font-weight: 600; color: #56625e; margin: 1.1rem 0 0.2rem; }
