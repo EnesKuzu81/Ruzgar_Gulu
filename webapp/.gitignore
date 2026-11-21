@@ -5,3 +5,6 @@ api/_lib/
 .vercel/
 public/maplibre/
 *.tsbuildinfo
+
+.vercel
+.env*
