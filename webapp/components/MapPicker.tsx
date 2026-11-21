@@ -1,6 +1,6 @@
 "use client";
 // Konum seçici: MapLibre + OpenFreeMap (anahtar gerektirmez). Haritaya tıklamak konumu değiştirir.
-// Bazı ağlar vektör harita sunucusunu engelleyebilir: stil 6 sn içinde yüklenmezse OpenStreetMap karolarına geçilir,
+// Bazı ağlar vektör harita sunucusunu engelleyebilir: hata ya da 15 sn zaman aşımında OpenStreetMap karolarına geçilir,
 // o da olmazsa kullanıcıya koordinatları elle girebileceği söylenir.
 import { useEffect, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -38,16 +38,25 @@ export default function MapPicker({ lat, lon, onPick, height = 220 }: Props) {
           container: el.current, style: VECTOR_STYLE, center: [lon, lat], zoom: 7.2,
           attributionControl: { compact: true }, cooperativeGestures: false,
         });
-        let stage: "vector" | "raster" | "done" = "vector";
-        const fallback = () => {
-          if (stage === "vector") {
-            stage = "raster"; m.setStyle(RASTER_STYLE);
-            clearTimeout(timer); timer = setTimeout(() => { if (stage !== "done") setFailed(true); }, 8000);
-          } else if (stage === "raster") setFailed(true);
+        // Yavaş bağlantıda harita geç gelebilir: 15 sn bekle. Gerçek hata ya da zaman aşımında OSM karolarına geç.
+        // Stil değişirken iptal edilen istekler (AbortError) hata sayılmaz.
+        let ok = false, switched = false;
+        const fail = () => { if (!ok) setFailed(true); };
+        const success = () => { if (!ok) { ok = true; clearTimeout(timer); setFailed(false); } };
+        const toRaster = () => {
+          if (switched) return fail();
+          switched = true; m.setStyle(RASTER_STYLE);
+          clearTimeout(timer); timer = setTimeout(fail, 15000);
         };
-        timer = setTimeout(() => { if (stage === "vector") fallback(); }, 6000);
-        m.on("idle", () => { stage = "done"; clearTimeout(timer); });
-        m.on("error", () => { if (stage !== "done") fallback(); });
+        // başarı = gerçekten bir harita karosu yüklendi ('idle' karolar başarısız olsa da tetiklenir)
+        m.on("data", (ev: { dataType?: string; tile?: unknown }) => { if (ev.dataType === "source" && ev.tile) success(); });
+        m.on("error", (ev: { error?: { name?: string; message?: string }; sourceId?: string }) => {
+          const err = ev?.error;
+          if (ok || err?.name === "AbortError" || /abort/i.test(String(err?.message ?? ""))) return;
+          if (!switched) toRaster();
+          else if (ev?.sourceId === "osm") fail();   // geçişten sonra yalnızca OSM kaynağının hataları sayılır
+        });
+        timer = setTimeout(() => { if (!ok) toRaster(); }, 15000);
         m.scrollZoom.disable();             // sayfa kaydırılırken harita yakınlaşmasın
         m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
         const dot = document.createElement("div");
