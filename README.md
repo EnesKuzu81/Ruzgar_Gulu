@@ -6,6 +6,22 @@ Akış: konum seç → rüzgar verisini getir (NASA POWER) veya yükle (CSV) →
 
 ![Saha ve veri](docs/ekran_saha.png)
 
+## Canlı uygulama
+
+- **Web arayüzü (Next.js + Python API, Vercel):** https://ruzgar-fizibilite.vercel.app
+- **Streamlit sürümü (yedek):** https://eneskuzu81.github.io/Ruzgar_Gulu/
+
+Bazı kurum ağları `*.vercel.app` adreslerini engelleyebilir; sunumdan önce kullanılacak ağda deneyin.
+
+Web arayüzünü yerelde çalıştırmak ve yeniden yüklemek (`webapp/` klasöründe):
+
+```bash
+npm install
+python -m uvicorn api.index:app --port 8765
+npm run dev
+npm run prepare-api && npx vercel deploy --prod
+```
+
 ## Kurulum (Windows, Python 3.11)
 
 Sanal ortamı OneDrive dışında tutmak önerilir (senkronizasyon binlerce küçük dosyayla yavaşlar):
