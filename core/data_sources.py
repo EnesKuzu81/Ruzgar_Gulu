@@ -179,6 +179,98 @@ def load_measurement_csv(
     return out
 
 
+# ---------------------------------------------------------------- MGM istasyon verisi
+
+# 16 yönlü pusula kodu -> derece (K = 0°, saat yönünde 22.5° adım). "C" (calm) sakin hava.
+COMPASS_16 = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+COMPASS_DEG = {k: i * 22.5 for i, k in enumerate(COMPASS_16)}
+MGM_TIME_COLS = ["YIL", "AY", "GUN", "SAAT"]
+
+
+def parse_mgm_wind(values: pd.Series) -> pd.DataFrame:
+    """MGM 'RUZGAR_YONU_VE_HIZI' sütununu ayırır: 'WSW1.1' -> yön 247.5°, hız 1.1 m/s.
+
+    'C' (sakin) -> hız 0 m/s, yön NaN. Tanınmayan kodlar NaN olur.
+    """
+    parts = values.astype(str).str.extract(r"^\s*([A-Za-z]*)\s*([-\d.,]*)\s*$")
+    code = parts[0].str.upper()
+    ws = pd.to_numeric(parts[1].str.replace(",", ".", regex=False), errors="coerce")
+    ws = ws.where(code != "C", 0.0)
+    wd = code.map(COMPASS_DEG)
+    return pd.DataFrame({"ws": ws.to_numpy(float), "wd": wd.to_numpy(float)})
+
+
+def _mgm_index(df: pd.DataFrame, utc_offset: float) -> pd.DatetimeIndex:
+    """YIL, AY, GUN, SAAT (yerel saat) sütunlarından UTC zaman indeksi."""
+    t = pd.to_datetime(dict(year=df["YIL"], month=df["AY"], day=df["GUN"], hour=df["SAAT"]))
+    return pd.DatetimeIndex(t - pd.Timedelta(hours=utc_offset)).tz_localize("UTC").rename("time")
+
+
+def _zip_name(info) -> str:
+    """Zip içindeki Türkçe dosya adını çözer (Windows zip'leri cp857 ile yazar)."""
+    name = info.filename
+    if not info.flag_bits & 0x800:  # UTF-8 bayrağı yoksa
+        try:
+            name = name.encode("cp437").decode("cp857")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            pass
+    return name
+
+
+def load_mgm_zip(file: str | Path | io.IOBase, height_m: float | None = None,
+                 utc_offset: float | None = None) -> pd.DataFrame:
+    """MGM'den alınan saatlik istasyon verisi zip'ini ortak şemaya çevirir.
+
+    Zorunlu: 'Rüzgar Yönü ve Hızı' Excel dosyası. Opsiyonel: 'Sıcaklık (°C)', 'Aktüel Basınç (hPa)'.
+    Basınç hPa -> kPa (÷10). İstasyon bilgisi 'Beni_Oku' dosyasından df.attrs'a yazılır
+    (station_no, station, lat, lon, elevation_m). Ölçüm yüksekliği df.attrs['height_m'].
+    """
+    import zipfile
+
+    height_m = _cfg("mgm_anemometer_height") if height_m is None else height_m
+    utc_offset = _cfg("mgm_utc_offset") if utc_offset is None else utc_offset
+    files: dict[str, bytes] = {}
+    with zipfile.ZipFile(file) as z:
+        for info in z.infolist():
+            if not info.is_dir():
+                files[_normalize(_zip_name(info))] = z.read(info)   # tam yol: adlarda "/" olabilir
+
+    def find(*keys: str) -> bytes | None:
+        return next((v for k, v in files.items() if all(x in k for x in keys)), None)
+
+    wind = find("ruzgar", ".xlsx")
+    if wind is None:
+        raise ValueError("Zip içinde 'Saatlik Rüzgar Yönü ve Hızı' Excel dosyası bulunamadı.")
+    w = pd.read_excel(io.BytesIO(wind)).dropna(subset=MGM_TIME_COLS)
+    if not set(MGM_TIME_COLS) <= set(w.columns):
+        raise ValueError("Rüzgar dosyası beklenen MGM biçiminde değil (YIL, AY, GUN, SAAT sütunları yok).")
+    out = parse_mgm_wind(w.iloc[:, -1])
+    out.index = _mgm_index(w, utc_offset)
+
+    for keys, col, scale in ((("sicaklik", ".xlsx"), "t2m_c", 1.0), (("basin", ".xlsx"), "ps_kpa", 0.1)):
+        raw = find(*keys)
+        if raw is None:
+            continue
+        m = pd.read_excel(io.BytesIO(raw)).dropna(subset=MGM_TIME_COLS)
+        s = pd.Series(pd.to_numeric(m.iloc[:, -1], errors="coerce").to_numpy() * scale, index=_mgm_index(m, utc_offset))
+        out[col] = s[~s.index.duplicated()].reindex(out.index)
+
+    attrs: dict[str, Any] = {"source": "MGM", "height_m": height_m}
+    info = find("beni_oku")
+    if info:
+        lines = [ln for ln in info.decode("cp1254", "replace").splitlines() if "|" in ln]
+        if len(lines) >= 2:
+            vals = lines[1].split("|")
+            try:
+                attrs.update(station_no=vals[0].strip(), station=vals[1].strip(), lat=float(vals[4]),
+                             lon=float(vals[5]), elevation_m=float(vals[6]))
+            except (IndexError, ValueError):
+                pass
+    out = out.sort_index()
+    out.attrs.update(attrs)
+    return out
+
+
 @dataclass
 class QualityReport:
     """Veri kalite özeti."""

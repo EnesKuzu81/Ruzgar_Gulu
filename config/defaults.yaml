@@ -48,6 +48,16 @@ data:
     unit: m/s
     note: Negatif hızlar silinir
     source: Fiziksel sınır
+  mgm_anemometer_height:
+    value: 10
+    unit: m
+    note: MGM istasyonlarında rüzgar ölçüm yüksekliği (kullanıcı değiştirebilir)
+    source: WMO standart anemometre yüksekliği; MGM istasyon kurulum standardı
+  mgm_utc_offset:
+    value: 3
+    unit: saat
+    note: MGM saatlerinin yerel saat (TSİ, UTC+3) olduğu varsayılır; yalnızca günlük profili etkiler
+    source: Varsayım (veri dosyasında saat dilimi belirtilmemiş)
 wind_resource:
   gas_constant_dry_air:
     value: 287.05

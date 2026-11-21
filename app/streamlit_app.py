@@ -23,7 +23,8 @@ from core import energy as en  # noqa: E402
 from core import environment as env  # noqa: E402
 from core import wind_resource as wr  # noqa: E402
 from core.config import load_defaults  # noqa: E402
-from core.data_sources import clean_wind_data, default_year_range, fetch_nasa_power, load_measurement_csv  # noqa: E402
+from core.data_sources import (clean_wind_data, default_year_range, fetch_nasa_power,  # noqa: E402
+                               load_measurement_csv, load_mgm_zip)
 
 st.set_page_config(page_title="Rüzgar Fizibilite", page_icon=None, layout="wide")
 
@@ -50,6 +51,7 @@ h2, h3 { font-weight: 600 !important; }
 .kpi small { display: block; color: #56625e; font-size: 0.72rem; }
 .kpi b { font-family: "IBM Plex Mono", monospace; font-size: 1.05rem; font-weight: 500; }
 .kpi i { font-style: normal; color: #56625e; font-size: 0.72rem; margin-left: 0.2rem; }
+.kpi { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kpi.neg b { color: #a2412c; }
 @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(4, 1fr); } .kpi { border-bottom: 1px solid #d5d9d6; } }
 .verdict { border-left: 3px solid #0e6b5a; background: #e2eeea; padding: 0.7rem 1rem; margin-bottom: 1rem; }
@@ -90,6 +92,14 @@ def load_csv(content: bytes, height: float):
 
 
 @st.cache_data(show_spinner=False)
+def load_mgm(content: bytes, height: float):
+    import io
+    raw = load_mgm_zip(io.BytesIO(content), height_m=height)
+    df, rep = clean_wind_data(raw)
+    return df, rep.as_dict(), dict(raw.attrs)
+
+
+@st.cache_data(show_spinner=False)
 def turbine_list() -> pd.DataFrame:
     return en.list_turbines()
 
@@ -106,7 +116,8 @@ ss.setdefault("lon", 27.14)
 ss.setdefault("data", None)
 if "pending_loc" in ss:                      # haritadan gelen konum, widget'lar çizilmeden uygulanır
     ss.lat, ss.lon = ss.pop("pending_loc")
-    ss.data = None
+    if not ss.pop("keep_data", False):       # MGM yüklemesi konumu istasyona taşır, veriyi korur
+        ss.data = None
 
 y_def = default_year_range()
 if ss.data is None and st.query_params.get("ornek") == "1":     # ?ornek=1: örnek sahayı (İzmir) otomatik yükle
@@ -135,7 +146,8 @@ with st.sidebar:
     st.caption("Saha & Veri sekmesinde haritaya tıklayarak da seçebilirsiniz.")
 
     st.markdown("### Rüzgar verisi")
-    source = st.radio("Kaynak", ["NASA POWER", "Kendi ölçümüm (CSV)"], horizontal=True, label_visibility="collapsed")
+    source = st.radio("Kaynak", ["NASA POWER", "MGM istasyon verisi (zip)", "Kendi ölçümüm (CSV)"],
+                      label_visibility="collapsed")
     if source == "NASA POWER":
         c1, c2 = st.columns(2)
         y1 = c1.number_input("Başlangıç yılı", 2001, y_def[1], y_def[0])
@@ -151,6 +163,27 @@ with st.sidebar:
                                        label=f"NASA POWER ({y1}-{y2})")
                     except Exception as e:  # ağ hatası vb.
                         st.error(f"Veri alınamadı. İnternet bağlantınızı kontrol edip tekrar deneyin. ({e})")
+    elif source.startswith("MGM"):
+        up_mgm = st.file_uploader("MGM zip dosyası", type=["zip"],
+                                  help="MGM'den alınan saatlik veri zip'i: rüzgar yönü ve hızı zorunlu, "
+                                       "sıcaklık ve basınç varsa hava yoğunluğu ölçümden hesaplanır.")
+        h_mgm = st.number_input("Anemometre yüksekliği (m)", 1.0, 200.0,
+                                float(CFG["data"]["mgm_anemometer_height"]["value"]))
+        if up_mgm is not None and ss.get("mgm_key") != (up_mgm.name, up_mgm.size, h_mgm):
+            try:
+                with st.spinner("MGM verisi okunuyor..."):
+                    df, rep, info = load_mgm(up_mgm.getvalue(), h_mgm)
+                off = pd.Timedelta(hours=CFG["data"]["mgm_utc_offset"]["value"])      # yerel saatle göster
+                years = f"{(pd.Timestamp(rep['start']) + off).year}-{(pd.Timestamp(rep['end']) + off).year}"
+                st_name = f"istasyon {info['station_no']}" if info.get("station_no") else "istasyon"
+                ss.data = dict(df=df, rep=rep, src="MGM", h1=h_mgm, col="ws", wd="wd",
+                               label=f"MGM {st_name}, {h_mgm:g} m ({years})")
+                ss.mgm_key = (up_mgm.name, up_mgm.size, h_mgm)
+                if "lat" in info:                 # konumu istasyona taşı
+                    ss.pending_loc, ss.keep_data = (info["lat"], info["lon"]), True
+                    st.rerun()
+            except ValueError as e:
+                st.error(str(e))
     else:
         up = st.file_uploader("Ölçüm CSV dosyası", type=["csv", "txt"],
                               help="Zaman ve hız sütunları zorunlu, yön, sıcaklık ve basınç opsiyonel.")
@@ -218,16 +251,21 @@ with tabs[0]:
             st.info("Henüz veri yok. Soldaki panelden kaynağı seçip **Veriyi getir** düğmesine basın.")
         else:
             r = D["rep"]
+            loc_off = pd.Timedelta(hours=CFG["data"]["mgm_utc_offset"]["value"] if D["src"] == "MGM" else 0)
             st.dataframe(pd.DataFrame({
                 "Ölçüt": ["Kapsanan süre", "Toplam kayıt", "Beklenen kayıt", "Eksik veri",
                           "Tekrarlı zaman damgası", "Fiziksel olmayan değer"],
-                "Değer": [f"{pd.Timestamp(r['start']):%d.%m.%Y} - {pd.Timestamp(r['end']):%d.%m.%Y}",
+                "Değer": [f"{pd.Timestamp(r['start']) + loc_off:%d.%m.%Y} - {pd.Timestamp(r['end']) + loc_off:%d.%m.%Y}",
                           fmt(r["total_records"]), fmt(r["expected_records"]), f"%{r['missing_pct']:.2f}",
                           fmt(r["duplicates_removed"]), fmt(r["out_of_range_removed"])]}),
                 hide_index=True, use_container_width=True)
             if D["src"] == "NASA POWER":
                 st.caption("NASA POWER bir reanaliz veri setidir (MERRA-2 tabanlı). Yerel arazi etkilerini "
                            "yumuşattığı için hızları gerçek ölçüme göre düşük gösterebilir.")
+            elif D["src"] == "MGM":
+                st.caption("MGM verisi gerçek istasyon ölçümüdür. İstasyonlar çoğunlukla yerleşim içinde ve 10 m'de "
+                           "olduğu için binalar rüzgarı yavaşlatır; açık bir santral sahasını temsil etmeyebilir. "
+                           "Göbek yüksekliğine taşırken arazi tipini (z₀) dikkatli seçin.")
             if r["missing_pct"] > 10:
                 st.warning("Eksik veri oranı %10'un üzerinde. Sonuçlar mevsimsel olarak yanlı olabilir.")
 
@@ -288,8 +326,10 @@ kpis = [
     ("Kapasite faktörü", fmt(100 * E["capacity_factor"], 1), "%", False),
     ("LCOE", fmt(R["lcoe"], 1) if R else "-", f"{inp.currency}/MWh", False),
     ("NPV", fmt(R["npv"] / 1e6, 2) if R else "-", f"M {inp.currency}", bool(R and R["npv"] < 0)),
-    ("IRR", fmt(100 * R["irr"], 1) if R and R["irr"] is not None else "-", "%", False),
-    ("Geri ödeme", fmt(R["payback"], 1) if R and R["payback"] is not None else "yok", "yıl", False),
+    ("IRR", fmt(100 * R["irr"], 1) if R and R["irr"] is not None else "-",
+     "%" if R and R["irr"] is not None else "", False),
+    ("Geri ödeme", fmt(R["payback"], 1) if R and R["payback"] is not None else "yok",
+     "yıl" if R and R["payback"] is not None else "", False),
 ]
 kpi_slot.markdown("<div class='kpis'>" + "".join(
     f"<div class='kpi{' neg' if neg else ''}'><small>{lab}</small><b>{val}</b><i>{unit}</i></div>"
