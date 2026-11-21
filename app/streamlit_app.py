@@ -29,75 +29,106 @@ from core.data_sources import (clean_wind_data, default_year_range, fetch_nasa_p
 
 st.set_page_config(page_title="Rüzgar Fizibilite", page_icon=None, layout="wide")
 
-ACCENT, NEG, BAR, MUTED = "#0e6b5a", "#a2412c", "#c9d3cf", "#9aa5a1"
+# grafik paleti: gökyüzü mavisi ana seri, açık mavi ikincil, mercan kayıp/negatif, kehribar vurgu
+ACCENT, NEG, BAR, MUTED, HILITE = "#0369A1", "#E5484D", "#BAE6FD", "#94A3B8", "#F59E0B"
 CFG = load_defaults()
 
 # ---------------------------------------------------------------- stil
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 :root {
-  --ink: #1c2422; --muted: #56625e; --line: #d5d9d6; --line-soft: #e4e7e5;
-  --surface: #ffffff; --bg: #f3f4f3;
-  --accent: #0e6b5a; --accent-ink: #0a5244; --accent-soft: #e2eeea;
-  --neg: #a2412c; --neg-ink: #8a3524; --neg-soft: #f6e7e3;
-  --radius: 6px;
+  --ink: #0F172A; --ink-2: #334155; --muted: #475569; --line: #DCE3EC; --surface: #FFFFFF; --bg: #EEF3F8;
+  --night: #0B1726; --night-2: #12304D; --sky: #38BDF8; --sky-ink: #0369A1; --sky-soft: #E0F2FE;
+  --amber: #F59E0B; --coral: #E5484D; --coral-soft: #FDECEC; --mint: #0F8A5F; --mint-soft: #E3F6EE;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 6px 20px rgba(15, 23, 42, 0.05);
 }
-html, body, [class*="css"], .stMarkdown, .stTextInput, .stNumberInput, .stSelectbox, button { font-family: "IBM Plex Sans", sans-serif; }
 #MainMenu, footer, [data-testid="stMainMenu"], [data-testid="stAppDeployButton"], [data-testid="stDecoration"] { display: none; }
 [data-testid="stHeader"] { background: transparent; }
 [data-stale="true"] { opacity: 1 !important; transition: none !important; }   /* yeniden hesapta ekran soluklaşmasın */
-.block-container { padding-top: 1.4rem; max-width: 1400px; }
+.block-container { padding-top: 1.2rem; max-width: 1440px; }
 h2, h3 { font-weight: 600 !important; letter-spacing: -0.01em; }
 .note { color: var(--muted); font-size: 0.8rem; }
 
-/* kenar çubuğu */
-[data-testid="stSidebar"] { border-right: 1px solid var(--line); }
-[data-testid="stSidebar"] h3 { font-size: 0.85rem; font-weight: 600; color: var(--ink); margin: 1.3rem 0 0.1rem; }
+/* kenar çubuğu (renkler config.toml [theme.sidebar]) */
+[data-testid="stSidebar"] h3 { font-size: 0.82rem; font-weight: 600; color: #7DD3FC; margin: 1.4rem 0 0.15rem; }
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] { color: #94A3B8; }
 [data-testid="stSidebar"] [data-testid="stNumberInputStepDown"],
 [data-testid="stSidebar"] [data-testid="stNumberInputStepUp"] { display: none; }   /* koordinat kesilmesin */
-.brand { font-weight: 600; font-size: 1rem; color: var(--ink); line-height: 1.3; }
-.brand span { display: block; font-weight: 400; font-size: 0.8rem; color: var(--muted); margin-top: 0.15rem; }
+.brand { display: flex; gap: 0.7rem; align-items: center; padding-bottom: 0.9rem; border-bottom: 1px solid #24405F; }
+.brand .mark { flex: none; width: 2.4rem; height: 2.4rem; border-radius: 10px; background: #0369A1;
+               display: grid; place-items: center; }
+.brand .mark svg { width: 1.35rem; height: 1.35rem; stroke: #FFFFFF; }
+.brand b { display: block; color: #F8FAFC; font-size: 1rem; font-weight: 600; line-height: 1.2; }
+.brand small { display: block; color: #94A3B8; font-size: 0.78rem; margin-top: 0.15rem; }
 
-/* başlık */
-.app-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.9rem; }
-.app-head h1 { font-size: 1.5rem; font-weight: 600; margin: 0; padding: 0; line-height: 1.25; letter-spacing: -0.015em; text-wrap: balance; }
-.app-head .meta { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
-.pill { flex: none; display: inline-flex; align-items: center; padding: 0.35rem 0.75rem; border-radius: 999px;
+/* başlık bandı: proje, durum ve ana sonuçlar */
+.band { background: linear-gradient(135deg, var(--night) 0%, var(--night-2) 100%); color: #F8FAFC;
+        border-radius: 16px; padding: 1.3rem 1.5rem 1.4rem; margin-bottom: 1.1rem; box-shadow: var(--shadow); }
+.band-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.band h1 { font-size: 1.65rem; font-weight: 600; margin: 0; padding: 0; color: #FFFFFF; line-height: 1.2;
+           letter-spacing: -0.015em; text-wrap: balance; }
+.band .meta { color: #A5B4C8; font-size: 0.88rem; margin-top: 0.3rem; }
+.pill { flex: none; display: inline-flex; align-items: center; padding: 0.4rem 0.85rem; border-radius: 999px;
         font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
-.pill.ok { background: var(--accent-soft); color: var(--accent-ink); }
-.pill.no { background: var(--neg-soft); color: var(--neg-ink); }
-.pill.wait { background: var(--surface); color: var(--muted); border: 1px solid var(--line); font-weight: 500; }
+.pill.ok { background: rgba(52, 211, 153, 0.16); color: #6EE7B7; box-shadow: inset 0 0 0 1px rgba(110, 231, 183, 0.35); }
+.pill.no { background: rgba(248, 113, 113, 0.16); color: #FCA5A5; box-shadow: inset 0 0 0 1px rgba(252, 165, 165, 0.35); }
+.pill.wait { background: rgba(255, 255, 255, 0.08); color: #CBD5E1; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18); font-weight: 500; }
+.band .hint { color: #A5B4C8; font-size: 0.92rem; margin: 1rem 0 0; }
 
-/* sonuç şeridi: kaynak, enerji, ekonomi */
-.kgroups { display: grid; grid-template-columns: 2fr 2fr 4fr; gap: 0.75rem; margin-bottom: 1.1rem; }
-.kg { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.6rem 0.85rem 0.7rem; min-width: 0; }
-.kg > span { display: block; font-size: 0.75rem; font-weight: 500; color: var(--muted); margin-bottom: 0.35rem; }
+.kgroups { display: grid; grid-template-columns: 2.1fr 2.1fr 3.8fr; gap: 0.75rem; margin-top: 1.15rem; }
+.kg { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.10); border-radius: var(--radius);
+      padding: 0.7rem 0.95rem 0.8rem; min-width: 0; }
+.kg > span { display: block; font-size: 0.78rem; font-weight: 600; color: #7DD3FC; margin-bottom: 0.45rem; }
 .kcells { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0.75rem; }
-.kcell { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kcell small { display: block; font-size: 0.72rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
-.kcell b { font-family: "IBM Plex Mono", monospace; font-size: 1.15rem; font-weight: 500; color: var(--ink); }
-.kcell i { font-style: normal; font-size: 0.72rem; color: var(--muted); margin-left: 0.2rem; }
-.kcell.neg b { color: var(--neg); }
+.kcell { min-width: 0; }
+.kcell small { display: block; font-size: 0.75rem; color: #A5B4C8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kcell b { font-family: "Fira Code", monospace; font-size: 1.35rem; font-weight: 600; color: #FFFFFF; letter-spacing: -0.03em;
+           white-space: nowrap; }
+.kcell i { display: block; font-style: normal; font-size: 0.75rem; color: #A5B4C8; margin-top: 0.1rem; white-space: nowrap; }
+.kcell.neg b { color: #FF9AA2; }
+.kcell.key b { color: #FCD34D; }
 @media (max-width: 1100px) { .kgroups { grid-template-columns: 1fr 1fr; } .kg.econ { grid-column: 1 / -1; } }
-@media (max-width: 640px)  { .kgroups { grid-template-columns: 1fr; } .kcells { grid-auto-flow: row; grid-template-columns: 1fr 1fr; } }
+@media (max-width: 640px)  { .kgroups { grid-template-columns: 1fr; } .kcells { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
+                             .band-top { flex-direction: column; } }
 
-/* fizibilite kararı (yan şerit yok: tam ton arka plan) */
-.verdict { display: flex; gap: 0.75rem; align-items: baseline; background: var(--accent-soft); color: var(--ink);
-           border-radius: var(--radius); padding: 0.75rem 1rem; margin-bottom: 1rem; }
-.verdict b { flex: none; color: var(--accent-ink); }
-.verdict.no { background: var(--neg-soft); }
-.verdict.no b { color: var(--neg-ink); }
+/* sekmeler: bölümlü kontrol */
+[data-testid="stTabs"] [role="tablist"] { gap: 0.25rem; background: var(--surface); border-radius: 12px; padding: 0.3rem;
+    box-shadow: var(--shadow); width: fit-content; max-width: 100%; overflow-x: auto; border: 0; }
+[data-testid="stTabs"] [role="tablist"]::before, [data-testid="stTabs"] [role="tablist"]::after { display: none; }
+[data-testid="stTab"] .react-aria-SelectionIndicator { display: none; }
+[data-testid="stTab"] { border-radius: 9px; padding: 0.5rem 1.05rem; cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease; }
+[data-testid="stTab"] p { font-size: 0.93rem; font-weight: 500; color: var(--ink-2); margin: 0; }
+[data-testid="stTab"]:hover { background: var(--sky-soft); }
+[data-testid="stTab"][aria-selected="true"] { background: var(--night); }
+[data-testid="stTab"][aria-selected="true"] p { color: #FFFFFF; }
+[data-testid="stTab"]:focus-visible { outline: 2px solid var(--sky-ink); outline-offset: 2px; }
+
+/* kartlar: grafik, tablo, sayı, harita */
+[data-testid="stPlotlyChart"], [data-testid="stDataFrame"], [data-testid="stMetric"], iframe[title*="folium"] {
+  background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); }
+[data-testid="stPlotlyChart"] { padding: 0.6rem 0.6rem 0.2rem; }
+[data-testid="stMetric"] { padding: 0.8rem 1rem; border: 1px solid var(--line); }
+[data-testid="stMetricLabel"] p { color: var(--muted); font-size: 0.82rem; }
+[data-testid="stMetricValue"] { font-family: "Fira Code", monospace; font-size: 1.35rem; color: var(--ink); }
+[data-testid="stExpander"] details { background: var(--surface); border-radius: var(--radius); }
+.stMarkdown p strong { color: var(--ink); }
+
+/* fizibilite kararı */
+.verdict { display: flex; gap: 0.75rem; align-items: baseline; background: var(--mint-soft); color: var(--ink);
+           border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1rem; }
+.verdict b { flex: none; color: var(--mint); }
+.verdict.no { background: var(--coral-soft); }
+.verdict.no b { color: #B42318; }
 
 /* boş durum */
-.empty { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1rem 1.2rem 0.4rem; }
-.empty h4 { margin: 0 0 0.5rem; font-size: 1rem; font-weight: 600; color: var(--ink); }
-.empty ol { margin: 0 0 0.6rem 1.1rem; padding: 0; color: var(--ink); font-size: 0.9rem; line-height: 1.6; }
-.empty p { color: var(--muted); font-size: 0.85rem; margin: 0 0 0.6rem; }
-.empty-tab { color: var(--muted); font-size: 0.9rem; padding: 2.5rem 0; text-align: center; }
+.empty { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.2rem 1.3rem 0.5rem; }
+.empty h4 { margin: 0 0 0.55rem; font-size: 1.05rem; font-weight: 600; color: var(--ink); }
+.empty ol { margin: 0 0 0.6rem 1.1rem; padding: 0; color: var(--ink-2); font-size: 0.92rem; line-height: 1.65; }
+.empty p { color: var(--muted); font-size: 0.86rem; margin: 0 0 0.6rem; }
+.empty-tab { color: var(--muted); font-size: 0.95rem; padding: 3rem 0; text-align: center; }
 
-[data-testid="stMetricValue"] { font-family: "IBM Plex Mono", monospace; font-size: 1.25rem; }
-button[data-baseweb="tab"] p { font-size: 0.9rem; font-weight: 500; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 """, unsafe_allow_html=True)
@@ -106,9 +137,9 @@ button[data-baseweb="tab"] p { font-size: 0.9rem; font-weight: 500; }
 def fig_layout(fig: go.Figure, height: int = 300, **kw) -> go.Figure:
     fig.update_layout(height=height, margin=kw.pop("margin", dict(l=48, r=12, t=10, b=40)), showlegend=kw.pop("showlegend", False),
                       paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                      font=dict(family="IBM Plex Sans", size=12, color="#1c2422"), **kw)
-    fig.update_xaxes(gridcolor="#e4e7e5", zeroline=False)
-    fig.update_yaxes(gridcolor="#e4e7e5", zeroline=False)
+                      font=dict(family="Fira Sans, sans-serif", size=12, color="#334155"), **kw)
+    fig.update_xaxes(gridcolor="#E2E8F0", zeroline=False, linecolor="#CBD5E1")
+    fig.update_yaxes(gridcolor="#E2E8F0", zeroline=False)
     return fig
 
 
@@ -187,7 +218,10 @@ wr_cfg, en_cfg = CFG["wind_resource"], CFG["energy"]
 
 # ---------------------------------------------------------------- kenar çubuğu
 with st.sidebar:
-    st.markdown("<div class='brand'>Rüzgar Enerjisi Fizibilite<span>EEM Rüzgar Enerjisi dersi projesi</span></div>",
+    st.markdown("<div class='brand'><div class='mark' aria-hidden='true'><svg viewBox='0 0 24 24' fill='none' "
+                "stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12.8 19.6A2 2 0 1 0 14 16H2'/>"
+                "<path d='M17.5 8a2.5 2.5 0 1 1 2 4H2'/><path d='M9.8 4.4A2 2 0 1 1 11 8H2'/></svg></div>"
+                "<div><b>Rüzgar Fizibilite</b><small>EEM Rüzgar Enerjisi dersi</small></div></div>",
                 unsafe_allow_html=True)
 
     st.markdown("### Proje")
@@ -282,17 +316,18 @@ with st.sidebar:
 
 # ---------------------------------------------------------------- başlık
 D = ss.data
-head_slot, kpi_slot = st.empty(), st.empty()
+head_slot = st.empty()
 
 
-def render_head(pill: str = "") -> None:
-    """Proje adı, konum ve veri kaynağı; sağda fizibilite durumu."""
-    meta = f"{ss.lat:.4f} K, {ss.lon:.4f} D" + (f" · {D['label']}" if D else "")
-    head_slot.markdown(f"<div class='app-head'><div><h1>{html.escape(project or 'Adsız proje')}</h1>"
-                       f"<div class='meta'>{meta}</div></div>{pill}</div>", unsafe_allow_html=True)
+def render_head(pill: str = "", body: str = "") -> None:
+    """Koyu başlık bandı: proje adı, konum ve veri kaynağı, fizibilite durumu, altında ana sonuçlar."""
+    meta = f"{ss.lat:.4f} K, {ss.lon:.4f} D" + (f" · {html.escape(D['label'])}" if D else "")
+    head_slot.markdown(f"<div class='band'><div class='band-top'><div><h1>{html.escape(project or 'Adsız proje')}</h1>"
+                       f"<div class='meta'>{meta}</div></div>{pill}</div>{body}</div>", unsafe_allow_html=True)
 
 
-render_head("" if D else "<span class='pill wait'>Veri bekleniyor</span>")
+render_head("<span class='pill wait'>Veri bekleniyor</span>",
+            "" if D else "<p class='hint'>Konumu seçip rüzgar verisini getirdiğinizde üretim ve ekonomi sonuçları burada görünecek.</p>")
 tabs = st.tabs(["Saha & Veri", "Rüzgar Kaynağı", "Türbin & Enerji", "Ekonomi", "Çevre", "Rapor"])
 
 # ---------------------------------------------------------------- 1. saha
@@ -390,15 +425,16 @@ except ValueError as e:
     R, econ_error = None, str(e)
 
 # ---------------------------------------------------------------- sonuç şeridi
-def kcell(label: str, value: str, unit: str = "", neg: bool = False) -> str:
-    return f"<div class='kcell{' neg' if neg else ''}'><small>{label}</small><b>{value}</b><i>{unit}</i></div>"
+def kcell(label: str, value: str, unit: str = "", neg: bool = False, key: bool = False) -> str:
+    cls = " neg" if neg else (" key" if key else "")
+    return f"<div class='kcell{cls}'><small>{label}</small><b>{value}</b><i>{unit}</i></div>"
 
 
 cur = inp.currency
 groups = [
     ("Rüzgar kaynağı", "", [kcell(f"Ort. hız ({hub:g} m)", fmt(ws_hub.mean(), 2), "m/s"),
                             kcell("Güç yoğunluğu", fmt(pd_hub), "W/m²")]),
-    ("Enerji", "", [kcell("Net AEP", fmt(E["net_aep"]), "MWh/yıl"),
+    ("Enerji", "", [kcell("Net AEP", fmt(E["net_aep"]), "MWh/yıl", key=True),
                     kcell("Kapasite faktörü", fmt(100 * E["capacity_factor"], 1), "%")]),
     ("Ekonomi", " econ", [
         kcell("LCOE", fmt(R["lcoe"], 1) if R else "-", f"{cur}/MWh" if R else ""),
@@ -408,15 +444,15 @@ groups = [
         kcell("Geri ödeme", fmt(R["payback"], 1) if R and R["payback"] is not None else "yok",
               "yıl" if R and R["payback"] is not None else "")]),
 ]
-kpi_slot.markdown("<div class='kgroups'>" + "".join(
+kpi_html = "<div class='kgroups'>" + "".join(
     f"<div class='kg{cls}'><span>{title}</span><div class='kcells'>{''.join(cells)}</div></div>"
-    for title, cls, cells in groups) + "</div>", unsafe_allow_html=True)
+    for title, cls, cells in groups) + "</div>"
 if R:
     _ok = R["npv"] > 0
     render_head(f"<span class='pill {'ok' if _ok else 'no'}'>{'Fizibil' if _ok else 'Fizibil değil'}"
-                f" · NPV {R['npv'] / 1e6:+.2f} M {cur}</span>")
+                f" · NPV {R['npv'] / 1e6:+.2f} M {cur}</span>", kpi_html)
 else:
-    render_head("<span class='pill wait'>Ekonomi hesaplanamadı</span>")
+    render_head("<span class='pill wait'>Ekonomi hesaplanamadı</span>", kpi_html)
 
 # ---------------------------------------------------------------- 2. rüzgar kaynağı
 with tabs[1]:
@@ -447,7 +483,7 @@ with tabs[1]:
             fig = go.Figure(go.Barpolar(r=rose["freq_pct"], theta=rose["sector"], marker_color=ACCENT, opacity=0.85,
                                         customdata=rose["mean_ws"], hovertemplate="%{theta}: %{r:.1f} %<br>ort. %{customdata:.2f} m/s<extra></extra>"))
             fig.update_layout(polar=dict(angularaxis=dict(direction="clockwise", rotation=90),
-                                         radialaxis=dict(ticksuffix="%", gridcolor="#e4e7e5"), bgcolor="rgba(0,0,0,0)"))
+                                         radialaxis=dict(ticksuffix="%", gridcolor="#E2E8F0"), bgcolor="rgba(0,0,0,0)"))
             st.plotly_chart(fig_layout(fig, margin=dict(l=30, r=30, t=20, b=20)), use_container_width=True)
             top = rose.sort_values("freq_pct").iloc[-1]
             st.caption(f"Baskın yön {top['sector']} (%{top['freq_pct']:.1f}).")
@@ -459,7 +495,7 @@ with tabs[1]:
     with left:
         st.markdown("**Aylık ortalama hız**")
         mp = wr.monthly_profile(ref)
-        st.plotly_chart(fig_layout(go.Figure(go.Bar(x=[months[i - 1] for i in mp.index], y=mp, marker_color=ACCENT)),
+        st.plotly_chart(fig_layout(go.Figure(go.Bar(x=[months[i - 1] for i in mp.index], y=mp, marker_color=[HILITE if v == mp.max() else ACCENT for v in mp])),
                                    260, yaxis_title="m/s"), use_container_width=True)
     with right:
         st.markdown("**Günlük profil (yerel saat)**")
@@ -533,7 +569,7 @@ with tabs[2]:
     with left:
         st.markdown("**Aylık net üretim**")
         mn = E["monthly_net"]
-        st.plotly_chart(fig_layout(go.Figure(go.Bar(x=[months[i - 1] for i in mn.index], y=mn, marker_color=ACCENT)),
+        st.plotly_chart(fig_layout(go.Figure(go.Bar(x=[months[i - 1] for i in mn.index], y=mn, marker_color=[HILITE if v == mn.max() else ACCENT for v in mn])),
                                    260, yaxis_title="MWh"), use_container_width=True)
     with right:
         st.markdown("**AEP yöntem karşılaştırması**")
