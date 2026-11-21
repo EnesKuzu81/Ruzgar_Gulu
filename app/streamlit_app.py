@@ -106,13 +106,20 @@ h2, h3 { font-weight: 600 !important; letter-spacing: -0.01em; }
 [data-testid="stTab"]:focus-visible { outline: 2px solid var(--sky-ink); outline-offset: 2px; }
 
 /* kartlar: grafik, tablo, sayı, harita */
-[data-testid="stPlotlyChart"], [data-testid="stDataFrame"], [data-testid="stMetric"], iframe[title*="folium"] {
+[data-testid="stMain"] [data-testid="stPlotlyChart"], [data-testid="stMain"] [data-testid="stDataFrame"],
+[data-testid="stMain"] [data-testid="stMetric"], [data-testid="stMain"] iframe[title*="folium"] {
   background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); }
 [data-testid="stPlotlyChart"] { padding: 0.6rem 0.6rem 0.2rem; }
 [data-testid="stMetric"] { padding: 0.8rem 1rem; border: 1px solid var(--line); }
 [data-testid="stMetricLabel"] p { color: var(--muted); font-size: 0.82rem; }
 [data-testid="stMetricValue"] { font-family: "Fira Code", monospace; font-size: 1.35rem; color: var(--ink); }
-[data-testid="stExpander"] details { background: var(--surface); border-radius: var(--radius); }
+[data-testid="stMain"] [data-testid="stExpander"] details { background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow); border-color: var(--line); }
+[data-testid="stSidebar"] [data-testid="stExpander"] details { background: #12243A; border-color: #24405F; }
+[data-testid="stSidebar"] [data-testid="stExpander"] summary p { color: #E2E8F0; }
+[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] { background: #0F2033; }
+[data-testid="stSidebarHeader"] { height: 2.5rem; padding-top: 0.5rem; padding-bottom: 0; }
+[data-testid="stSidebarUserContent"] { padding-top: 0.5rem; }
 .stMarkdown p strong { color: var(--ink); }
 
 /* fizibilite kararı */
@@ -291,9 +298,8 @@ with st.sidebar:
     t_label = lambda n: (lambda r: f"{r.manufacturer} {n} ({r.rated_kw / 1000:g} MW)")(turbines.set_index("turbine_type").loc[n])
     t_name = st.selectbox("Model", names, index=names.index(default_t), format_func=t_label)
     hubs = turbines.set_index("turbine_type").loc[t_name, "hub_heights"]
-    c1, c2 = st.columns(2)
-    hub = c1.number_input("Göbek yüksekliği (m)", 20.0, 200.0, float(en_cfg["default_hub_height"]["value"]))
-    n_turb = c2.number_input("Türbin adedi", 1, 50, int(en_cfg["n_turbines"]["value"]))
+    hub = st.number_input("Göbek yüksekliği (m)", 20.0, 200.0, float(en_cfg["default_hub_height"]["value"]))
+    n_turb = st.number_input("Türbin adedi", 1, 50, int(en_cfg["n_turbines"]["value"]))
     if isinstance(hubs, str):
         st.caption(f"Üreticinin sunduğu göbek yükseklikleri: {hubs.replace(';', ', ')} m")
     with st.expander("Kendi güç eğrim"):
@@ -334,7 +340,9 @@ tabs = st.tabs(["Saha & Veri", "Rüzgar Kaynağı", "Türbin & Enerji", "Ekonomi
 with tabs[0]:
     left, right = st.columns([1.5, 1])
     with left:
-        m = folium.Map(location=[ss.lat, ss.lon], zoom_start=9, tiles="OpenStreetMap", control_scale=True)
+        st.markdown("**Konum**")
+        m = folium.Map(location=[ss.lat, ss.lon], zoom_start=9, tiles="OpenStreetMap", control_scale=True,
+                       scrollWheelZoom=False)   # sayfa kaydırılırken harita yakınlaşmasın
         folium.CircleMarker([ss.lat, ss.lon], radius=7, color=ACCENT, fill=True, fill_opacity=0.9).add_to(m)
         out = st_folium(m, height=420, use_container_width=True, returned_objects=["last_clicked"], key="map")
         click = (out or {}).get("last_clicked")
@@ -343,7 +351,7 @@ with tabs[0]:
             st.rerun()
         st.caption("Konumu değiştirmek için haritaya tıklayın. Konum değişince veriyi yeniden getirmeniz gerekir.")
     with right:
-        st.subheader("Veri kalitesi")
+        st.markdown("**Veri kalitesi**")
         if not D:
             st.markdown("<div class='empty'><h4>Başlamak için rüzgar verisi gerekiyor</h4><ol>"
                         "<li>Haritaya tıklayarak veya soldan koordinat girerek konumu seçin.</li>"
@@ -538,7 +546,7 @@ with tabs[2]:
                                      help="Tek türbinde iz kaybı uygulanmaz." if k == "wake" else None)
     c = st.columns(4)
     c[0].metric("Brüt AEP", f"{fmt(E['gross_aep_ts'])} MWh")
-    c[1].metric("Net AEP", f"{fmt(E['net_aep'])} MWh", f"-%{E['total_loss_pct']:.1f} kayıp", delta_color="off")
+    c[1].metric(f"Net AEP (kayıp %{E['total_loss_pct']:.1f})", f"{fmt(E['net_aep'])} MWh")
     c[2].metric("Kapasite faktörü", f"%{100 * E['capacity_factor']:.1f}")
     c[3].metric("Tam yük saati", f"{fmt(E['full_load_hours'])} h")
 
