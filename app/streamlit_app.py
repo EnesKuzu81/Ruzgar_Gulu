@@ -4,6 +4,7 @@ Hesaplar core/ altındaki saf fonksiyonlarla yapılır; bu dosya yalnızca girdi
 """
 from __future__ import annotations
 
+import html
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -35,30 +36,69 @@ CFG = load_defaults()
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+:root {
+  --ink: #1c2422; --muted: #56625e; --line: #d5d9d6; --line-soft: #e4e7e5;
+  --surface: #ffffff; --bg: #f3f4f3;
+  --accent: #0e6b5a; --accent-ink: #0a5244; --accent-soft: #e2eeea;
+  --neg: #a2412c; --neg-ink: #8a3524; --neg-soft: #f6e7e3;
+  --radius: 6px;
+}
 html, body, [class*="css"], .stMarkdown, .stTextInput, .stNumberInput, .stSelectbox, button { font-family: "IBM Plex Sans", sans-serif; }
 #MainMenu, footer, [data-testid="stMainMenu"], [data-testid="stAppDeployButton"], [data-testid="stDecoration"] { display: none; }
 [data-testid="stHeader"] { background: transparent; }
 [data-stale="true"] { opacity: 1 !important; transition: none !important; }   /* yeniden hesapta ekran soluklaşmasın */
-.block-container { padding-top: 1.6rem; max-width: 1400px; }
-[data-testid="stSidebar"] { border-right: 1px solid #d5d9d6; }
-[data-testid="stSidebar"] h3 { font-size: 0.8rem; font-weight: 600; color: #56625e; margin: 1.1rem 0 0.2rem; }
-h1 { font-size: 1.45rem !important; font-weight: 600 !important; margin-bottom: 0 !important; }
-h2, h3 { font-weight: 600 !important; }
-.site-line { color: #56625e; font-size: 0.85rem; margin: 0.15rem 0 0.9rem; }
-.kpis { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); border: 1px solid #d5d9d6; background: #fbfbfa; margin-bottom: 1rem; }
-.kpi { padding: 0.6rem 0.8rem; border-right: 1px solid #d5d9d6; }
-.kpi:last-child { border-right: 0; }
-.kpi small { display: block; color: #56625e; font-size: 0.72rem; }
-.kpi b { font-family: "IBM Plex Mono", monospace; font-size: 1.05rem; font-weight: 500; }
-.kpi i { font-style: normal; color: #56625e; font-size: 0.72rem; margin-left: 0.2rem; }
-.kpi { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kpi.neg b { color: #a2412c; }
-@media (max-width: 1100px) { .kpis { grid-template-columns: repeat(4, 1fr); } .kpi { border-bottom: 1px solid #d5d9d6; } }
-.verdict { border-left: 3px solid #0e6b5a; background: #e2eeea; padding: 0.7rem 1rem; margin-bottom: 1rem; }
-.verdict.no { border-color: #a2412c; background: #f4e6e2; }
-.note { color: #56625e; font-size: 0.8rem; }
+.block-container { padding-top: 1.4rem; max-width: 1400px; }
+h2, h3 { font-weight: 600 !important; letter-spacing: -0.01em; }
+.note { color: var(--muted); font-size: 0.8rem; }
+
+/* kenar çubuğu */
+[data-testid="stSidebar"] { border-right: 1px solid var(--line); }
+[data-testid="stSidebar"] h3 { font-size: 0.85rem; font-weight: 600; color: var(--ink); margin: 1.3rem 0 0.1rem; }
+[data-testid="stSidebar"] [data-testid="stNumberInputStepDown"],
+[data-testid="stSidebar"] [data-testid="stNumberInputStepUp"] { display: none; }   /* koordinat kesilmesin */
+.brand { font-weight: 600; font-size: 1rem; color: var(--ink); line-height: 1.3; }
+.brand span { display: block; font-weight: 400; font-size: 0.8rem; color: var(--muted); margin-top: 0.15rem; }
+
+/* başlık */
+.app-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.9rem; }
+.app-head h1 { font-size: 1.5rem; font-weight: 600; margin: 0; padding: 0; line-height: 1.25; letter-spacing: -0.015em; text-wrap: balance; }
+.app-head .meta { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+.pill { flex: none; display: inline-flex; align-items: center; padding: 0.35rem 0.75rem; border-radius: 999px;
+        font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
+.pill.ok { background: var(--accent-soft); color: var(--accent-ink); }
+.pill.no { background: var(--neg-soft); color: var(--neg-ink); }
+.pill.wait { background: var(--surface); color: var(--muted); border: 1px solid var(--line); font-weight: 500; }
+
+/* sonuç şeridi: kaynak, enerji, ekonomi */
+.kgroups { display: grid; grid-template-columns: 2fr 2fr 4fr; gap: 0.75rem; margin-bottom: 1.1rem; }
+.kg { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.6rem 0.85rem 0.7rem; min-width: 0; }
+.kg > span { display: block; font-size: 0.75rem; font-weight: 500; color: var(--muted); margin-bottom: 0.35rem; }
+.kcells { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0.75rem; }
+.kcell { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kcell small { display: block; font-size: 0.72rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.kcell b { font-family: "IBM Plex Mono", monospace; font-size: 1.15rem; font-weight: 500; color: var(--ink); }
+.kcell i { font-style: normal; font-size: 0.72rem; color: var(--muted); margin-left: 0.2rem; }
+.kcell.neg b { color: var(--neg); }
+@media (max-width: 1100px) { .kgroups { grid-template-columns: 1fr 1fr; } .kg.econ { grid-column: 1 / -1; } }
+@media (max-width: 640px)  { .kgroups { grid-template-columns: 1fr; } .kcells { grid-auto-flow: row; grid-template-columns: 1fr 1fr; } }
+
+/* fizibilite kararı (yan şerit yok: tam ton arka plan) */
+.verdict { display: flex; gap: 0.75rem; align-items: baseline; background: var(--accent-soft); color: var(--ink);
+           border-radius: var(--radius); padding: 0.75rem 1rem; margin-bottom: 1rem; }
+.verdict b { flex: none; color: var(--accent-ink); }
+.verdict.no { background: var(--neg-soft); }
+.verdict.no b { color: var(--neg-ink); }
+
+/* boş durum */
+.empty { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1rem 1.2rem 0.4rem; }
+.empty h4 { margin: 0 0 0.5rem; font-size: 1rem; font-weight: 600; color: var(--ink); }
+.empty ol { margin: 0 0 0.6rem 1.1rem; padding: 0; color: var(--ink); font-size: 0.9rem; line-height: 1.6; }
+.empty p { color: var(--muted); font-size: 0.85rem; margin: 0 0 0.6rem; }
+.empty-tab { color: var(--muted); font-size: 0.9rem; padding: 2.5rem 0; text-align: center; }
+
 [data-testid="stMetricValue"] { font-family: "IBM Plex Mono", monospace; font-size: 1.25rem; }
 button[data-baseweb="tab"] p { font-size: 0.9rem; font-weight: 500; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 """, unsafe_allow_html=True)
 
@@ -120,23 +160,38 @@ if "pending_loc" in ss:                      # haritadan gelen konum, widget'lar
         ss.data = None
 
 y_def = default_year_range()
-if ss.data is None and st.query_params.get("ornek") == "1":     # ?ornek=1: örnek sahayı (İzmir) otomatik yükle
+
+
+def load_sample(widgets_drawn: bool = False) -> bool:
+    """Örnek saha: İzmir, NASA POWER son 5 tam yıl (önbellekte hazır).
+
+    Koordinat kutuları çizildikten sonra değerleri değiştirilemez; o durumda konum bir sonraki çizime bırakılır.
+    """
     try:
-        _df, _rep = load_power(round(ss.lat, 4), round(ss.lon, 4), y_def[0], y_def[1])
-        ss.data = dict(df=_df, rep=_rep, src="NASA POWER", h1=50, col="ws50", wd="wd50",
-                       label=f"NASA POWER ({y_def[0]}-{y_def[1]})")
+        _df, _rep = load_power(38.42, 27.14, y_def[0], y_def[1])
     except Exception:
-        pass
+        return False
+    if widgets_drawn:
+        ss.pending_loc, ss.keep_data = (38.42, 27.14), True
+    else:
+        ss.lat, ss.lon = 38.42, 27.14
+    ss.data = dict(df=_df, rep=_rep, src="NASA POWER", h1=50, col="ws50", wd="wd50",
+                   label=f"NASA POWER ({y_def[0]}-{y_def[1]})")
+    return True
+
+
+if ss.data is None and st.query_params.get("ornek") == "1":     # ?ornek=1: örnek sahayı otomatik yükle
+    load_sample()
 turbines = turbine_list()
 wr_cfg, en_cfg = CFG["wind_resource"], CFG["energy"]
 
 # ---------------------------------------------------------------- kenar çubuğu
 with st.sidebar:
-    st.markdown("**Rüzgar Enerjisi Fizibilite**  \n<span class='note'>EEM Rüzgar Enerjisi dersi projesi</span>",
+    st.markdown("<div class='brand'>Rüzgar Enerjisi Fizibilite<span>EEM Rüzgar Enerjisi dersi projesi</span></div>",
                 unsafe_allow_html=True)
 
     st.markdown("### Proje")
-    project = st.text_input("Proje adı", "Çiğli Kıyı Sahası")
+    project = st.text_input("Proje adı", "İzmir Rüzgar Sahası")
     author = st.text_input("Hazırlayan", "")
 
     st.markdown("### Konum")
@@ -210,27 +265,34 @@ with st.sidebar:
     with st.expander("Kendi güç eğrim"):
         curve_up = st.file_uploader("Güç eğrisi CSV", type=["csv"], help="Sütunlar: wind_speed (m/s), power_kw (kW)")
 
-    st.markdown("### Yükseklik ve yoğunluk")
-    method = st.radio("Ekstrapolasyon", ["Power law", "Log law"], horizontal=True)
-    z0_table = wr_cfg["roughness_z0"]["value"]
-    z0_name = st.selectbox("Arazi tipi (z₀)", list(z0_table), index=list(z0_table).index("Nadas tarlası"))
-    z0 = float(z0_table[z0_name])
-    alpha = None
-    if method == "Power law":
-        site_alpha_ok = ss.data is not None and ss.data["src"] == "NASA POWER"
-        a_mode = st.radio("α değeri", ["Sahadan hesapla", "Sabit"] if site_alpha_ok else ["Sabit"], horizontal=True)
-        if a_mode == "Sabit":
-            alpha = st.number_input("α", 0.0, 0.6, float(wr_cfg["fixed_alpha"]["value"]), 0.005, format="%.3f")
-    dens_method = st.selectbox("Yoğunluk düzeltmesi", ["iec", "svenningsen"],
-                               format_func={"iec": "IEC 61400-12-1", "svenningsen": "Svenningsen (değişken üs)"}.get)
+    st.markdown("### Gelişmiş")
+    with st.expander("Yükseklik ve yoğunluk"):
+        method = st.radio("Ekstrapolasyon", ["Power law", "Log law"], horizontal=True)
+        z0_table = wr_cfg["roughness_z0"]["value"]
+        z0_name = st.selectbox("Arazi tipi (z₀)", list(z0_table), index=list(z0_table).index("Nadas tarlası"))
+        z0 = float(z0_table[z0_name])
+        alpha = None
+        if method == "Power law":
+            site_alpha_ok = ss.data is not None and ss.data["src"] == "NASA POWER"
+            a_mode = st.radio("α değeri", ["Sahadan hesapla", "Sabit"] if site_alpha_ok else ["Sabit"], horizontal=True)
+            if a_mode == "Sabit":
+                alpha = st.number_input("α", 0.0, 0.6, float(wr_cfg["fixed_alpha"]["value"]), 0.005, format="%.3f")
+        dens_method = st.selectbox("Yoğunluk düzeltmesi", ["iec", "svenningsen"],
+                                   format_func={"iec": "IEC 61400-12-1", "svenningsen": "Svenningsen (değişken üs)"}.get)
 
 # ---------------------------------------------------------------- başlık
-st.title(project or "Adsız proje")
 D = ss.data
-st.markdown(f"<div class='site-line'>{ss.lat:.4f} K, {ss.lon:.4f} D"
-            + (f" · {D['label']}" if D else "") + "</div>", unsafe_allow_html=True)
+head_slot, kpi_slot = st.empty(), st.empty()
 
-kpi_slot = st.empty()
+
+def render_head(pill: str = "") -> None:
+    """Proje adı, konum ve veri kaynağı; sağda fizibilite durumu."""
+    meta = f"{ss.lat:.4f} K, {ss.lon:.4f} D" + (f" · {D['label']}" if D else "")
+    head_slot.markdown(f"<div class='app-head'><div><h1>{html.escape(project or 'Adsız proje')}</h1>"
+                       f"<div class='meta'>{meta}</div></div>{pill}</div>", unsafe_allow_html=True)
+
+
+render_head("" if D else "<span class='pill wait'>Veri bekleniyor</span>")
 tabs = st.tabs(["Saha & Veri", "Rüzgar Kaynağı", "Türbin & Enerji", "Ekonomi", "Çevre", "Rapor"])
 
 # ---------------------------------------------------------------- 1. saha
@@ -248,7 +310,15 @@ with tabs[0]:
     with right:
         st.subheader("Veri kalitesi")
         if not D:
-            st.info("Henüz veri yok. Soldaki panelden kaynağı seçip **Veriyi getir** düğmesine basın.")
+            st.markdown("<div class='empty'><h4>Başlamak için rüzgar verisi gerekiyor</h4><ol>"
+                        "<li>Haritaya tıklayarak veya soldan koordinat girerek konumu seçin.</li>"
+                        "<li>Soldaki panelden veri kaynağını seçin: NASA POWER, MGM zip ya da kendi CSV'niz.</li>"
+                        "<li><b>Veriyi getir</b> düğmesine basın; sonuçlar bütün sekmelerde hesaplanır.</li></ol>"
+                        "<p>Hızlıca denemek için hazır İzmir örneğini açabilirsiniz.</p></div>", unsafe_allow_html=True)
+            if st.button("İzmir örneğini aç", type="primary"):
+                if load_sample(widgets_drawn=True):
+                    st.rerun()
+                st.error("Örnek veri yüklenemedi. İnternet bağlantınızı kontrol edin.")
         else:
             r = D["rep"]
             loc_off = pd.Timedelta(hours=CFG["data"]["mgm_utc_offset"]["value"] if D["src"] == "MGM" else 0)
@@ -272,7 +342,8 @@ with tabs[0]:
 if not D:
     for t in tabs[1:]:
         with t:
-            st.info("Bu bölümü görmek için önce rüzgar verisini getirin.")
+            st.markdown("<div class='empty-tab'>Bu bölüm, rüzgar verisi yüklendikten sonra dolacak. "
+                        "Başlamak için <b>Saha & Veri</b> sekmesine dönün.</div>", unsafe_allow_html=True)
     st.stop()
 
 # ---------------------------------------------------------------- ortak hesaplar
@@ -319,21 +390,33 @@ except ValueError as e:
     R, econ_error = None, str(e)
 
 # ---------------------------------------------------------------- sonuç şeridi
-kpis = [
-    (f"Ort. hız ({hub:g} m)", fmt(ws_hub.mean(), 2), "m/s", False),
-    ("Güç yoğunluğu", fmt(pd_hub), "W/m²", False),
-    ("Net AEP", fmt(E["net_aep"]), "MWh/yıl", False),
-    ("Kapasite faktörü", fmt(100 * E["capacity_factor"], 1), "%", False),
-    ("LCOE", fmt(R["lcoe"], 1) if R else "-", f"{inp.currency}/MWh", False),
-    ("NPV", fmt(R["npv"] / 1e6, 2) if R else "-", f"M {inp.currency}", bool(R and R["npv"] < 0)),
-    ("IRR", fmt(100 * R["irr"], 1) if R and R["irr"] is not None else "-",
-     "%" if R and R["irr"] is not None else "", False),
-    ("Geri ödeme", fmt(R["payback"], 1) if R and R["payback"] is not None else "yok",
-     "yıl" if R and R["payback"] is not None else "", False),
+def kcell(label: str, value: str, unit: str = "", neg: bool = False) -> str:
+    return f"<div class='kcell{' neg' if neg else ''}'><small>{label}</small><b>{value}</b><i>{unit}</i></div>"
+
+
+cur = inp.currency
+groups = [
+    ("Rüzgar kaynağı", "", [kcell(f"Ort. hız ({hub:g} m)", fmt(ws_hub.mean(), 2), "m/s"),
+                            kcell("Güç yoğunluğu", fmt(pd_hub), "W/m²")]),
+    ("Enerji", "", [kcell("Net AEP", fmt(E["net_aep"]), "MWh/yıl"),
+                    kcell("Kapasite faktörü", fmt(100 * E["capacity_factor"], 1), "%")]),
+    ("Ekonomi", " econ", [
+        kcell("LCOE", fmt(R["lcoe"], 1) if R else "-", f"{cur}/MWh" if R else ""),
+        kcell("NPV", fmt(R["npv"] / 1e6, 2) if R else "-", f"M {cur}" if R else "", bool(R and R["npv"] < 0)),
+        kcell("IRR", fmt(100 * R["irr"], 1) if R and R["irr"] is not None else "-",
+              "%" if R and R["irr"] is not None else ""),
+        kcell("Geri ödeme", fmt(R["payback"], 1) if R and R["payback"] is not None else "yok",
+              "yıl" if R and R["payback"] is not None else "")]),
 ]
-kpi_slot.markdown("<div class='kpis'>" + "".join(
-    f"<div class='kpi{' neg' if neg else ''}'><small>{lab}</small><b>{val}</b><i>{unit}</i></div>"
-    for lab, val, unit, neg in kpis) + "</div>", unsafe_allow_html=True)
+kpi_slot.markdown("<div class='kgroups'>" + "".join(
+    f"<div class='kg{cls}'><span>{title}</span><div class='kcells'>{''.join(cells)}</div></div>"
+    for title, cls, cells in groups) + "</div>", unsafe_allow_html=True)
+if R:
+    _ok = R["npv"] > 0
+    render_head(f"<span class='pill {'ok' if _ok else 'no'}'>{'Fizibil' if _ok else 'Fizibil değil'}"
+                f" · NPV {R['npv'] / 1e6:+.2f} M {cur}</span>")
+else:
+    render_head("<span class='pill wait'>Ekonomi hesaplanamadı</span>")
 
 # ---------------------------------------------------------------- 2. rüzgar kaynağı
 with tabs[1]:
@@ -492,15 +575,17 @@ with tabs[3]:
         st.error(f"Ekonomik hesap yapılamadı: {econ_error}")
     else:
         ok, txt = ec.verdict(R, inp.discount_rate)
-        st.markdown(f"<div class='verdict{'' if ok else ' no'}'>{txt}</div>", unsafe_allow_html=True)
-        c = st.columns(5)
-        c[0].metric("CAPEX", f"{R['capex'] / 1e6:.2f} M {inp.currency}")
-        c[1].metric("LCOE", f"{R['lcoe']:.1f} {inp.currency}/MWh")
-        c[2].metric("NPV", f"{R['npv'] / 1e6:.2f} M {inp.currency}")
-        c[3].metric("IRR", "-" if R["irr"] is None else f"%{100 * R['irr']:.1f}")
-        c[4].metric("İskontolu geri ödeme", "ömür içinde yok" if R["discounted_payback"] is None else f"{R['discounted_payback']:.1f} yıl")
-
+        st.markdown(f"<div class='verdict{'' if ok else ' no'}'><b>{'Fizibil' if ok else 'Fizibil değil'}</b>"
+                    f"<span>{txt}</span></div>", unsafe_allow_html=True)
         T = R["table"]
+        # LCOE, NPV, IRR üstteki şeritte; burada şeritte olmayanlar
+        c = st.columns(4)
+        c[0].metric("Yatırım (CAPEX)", f"{R['capex'] / 1e6:.2f} M {inp.currency}")
+        c[1].metric("1. yıl geliri", f"{T.loc[1, 'revenue'] / 1e3:,.0f} bin {inp.currency}".replace(",", " "))
+        c[2].metric("1. yıl OPEX", f"{T.loc[1, 'opex'] / 1e3:,.0f} bin {inp.currency}".replace(",", " "))
+        c[3].metric("İskontolu geri ödeme", "ömür içinde yok" if R["discounted_payback"] is None
+                    else f"{R['discounted_payback']:.1f} yıl")
+
         left, right = st.columns([1.3, 1])
         with left:
             st.markdown("**Yıllık ve kümülatif nakit akışı**")
@@ -557,7 +642,8 @@ with tabs[4]:
 with tabs[5]:
     if R:
         ok, txt = ec.verdict(R, inp.discount_rate)
-        st.markdown(f"<div class='verdict{'' if ok else ' no'}'>{txt}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='verdict{'' if ok else ' no'}'><b>{'Fizibil' if ok else 'Fizibil değil'}</b>"
+                    f"<span>{txt}</span></div>", unsafe_allow_html=True)
     rc = CFG["report"]
     with st.expander("Kapak bilgileri", expanded=True):
         c = st.columns(3)
