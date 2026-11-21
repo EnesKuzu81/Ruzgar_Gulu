@@ -1,0 +1,12 @@
+# Vercel Python fonksiyonu için (Streamlit ve geliştirme araçları yok)
+fastapi==0.165.0
+numpy==2.4.6
+pandas==3.0.6
+scipy==1.17.1
+windpowerlib==0.2.2
+numpy-financial==1.0.0
+matplotlib==3.11.2
+python-docx==1.2.0
+PyYAML==6.0.3
+requests==2.34.2
+staticmap==0.5.7

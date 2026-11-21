@@ -13,3 +13,4 @@ outputs/*
 !outputs/ornek_rapor.pdf
 docs/*.tmp
 !data/cache/power_38.4200_27.1400_*.parquet
+sunum/Uzerinde_Durulacak_Noktalar.pdf
