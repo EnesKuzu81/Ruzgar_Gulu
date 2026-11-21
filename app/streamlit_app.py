@@ -29,55 +29,61 @@ from core.data_sources import (clean_wind_data, default_year_range, fetch_nasa_p
 
 st.set_page_config(page_title="Rüzgar Fizibilite", page_icon=None, layout="wide")
 
-# grafik paleti (koyu zemin): liken yeşili ana seri, sönük yeşil ikincil, çelik mavisi karşılaştırma,
-# mercan kayıp/negatif, hardal en yüksek değer
-ACCENT, NEG, BAR, MUTED, HILITE = "#A8D58A", "#F07167", "#4F6B58", "#7AA2C4", "#E6B450"
+# grafik paleti: açık ve koyu temada okunan orta tonlar (yazı ve ızgara renklerini Streamlit teması verir)
+# yosun yeşili ana seri, yarı saydam yeşil ikincil, çelik mavisi karşılaştırma, mercan negatif, hardal en yüksek değer
+ACCENT, NEG, BAR, MUTED, HILITE = "#4E9A5A", "#E0605A", "rgba(78, 154, 90, 0.45)", "#5B8DB8", "#D99A2B"
+SOFT = "rgba(78, 154, 90, 0.6)"
 CFG = load_defaults()
 
 # ---------------------------------------------------------------- stil
 st.markdown("""
 <style>
-:root {
-  --bg: #121614; --panel: #1A1F1C; --panel-2: #222925; --line: #2E3732; --line-2: #3A453F;
-  --ink: #E8ECE9; --ink-2: #C5CDC8; --muted: #8E9A93;
-  --accent: #A8D58A; --accent-deep: #3E7B4B; --amber: #E6B450; --coral: #F07167; --steel: #7AA2C4;
+/* Renkler light-dark(açık, koyu) ile tanımlı: Streamlit'in seçili temasına (color-scheme) göre kendiliğinden çözülür. */
+.stApp {
+  --bg: light-dark(#E9EDEA, #121614); --panel: light-dark(#F6F8F6, #1A1F1C); --panel-2: light-dark(#EDF1EE, #222925);
+  --line: light-dark(#D3DAD5, #2E3732); --line-2: light-dark(#BFC9C2, #3A453F);
+  --ink: light-dark(#18201C, #E8ECE9); --ink-2: light-dark(#33403A, #C5CDC8); --muted: light-dark(#5B6860, #8E9A93);
+  --accent: light-dark(#2F6B3E, #A8D58A); --accent-deep: #3E7B4B;
+  --amber: light-dark(#9A6410, #E6B450); --coral: light-dark(#B23A31, #F07167);
+  --ok-bg: light-dark(rgba(47, 107, 62, 0.08), rgba(168, 213, 138, 0.08)); --ok-line: light-dark(rgba(47, 107, 62, 0.35), rgba(168, 213, 138, 0.45));
+  --no-bg: light-dark(rgba(178, 58, 49, 0.07), rgba(240, 113, 103, 0.08)); --no-line: light-dark(rgba(178, 58, 49, 0.35), rgba(240, 113, 103, 0.45));
   --radius: 10px;
 }
-#MainMenu, footer, [data-testid="stMainMenu"], [data-testid="stAppDeployButton"], [data-testid="stDecoration"] { display: none; }
+[data-testid="stAppDeployButton"], [data-testid="stDecoration"], footer { display: none; }
 [data-testid="stHeader"] { background: transparent; }
 [data-stale="true"] { opacity: 1 !important; transition: none !important; }   /* yeniden hesapta ekran soluklaşmasın */
 .block-container { padding-top: 1.2rem; max-width: 1440px; }
 h2, h3 { font-weight: 600 !important; letter-spacing: -0.01em; }
 .note { color: var(--muted); font-size: 0.8rem; }
-[data-testid="stCaptionContainer"] { color: var(--muted); }
-.stMarkdown p strong { color: var(--ink); font-weight: 600; }
+[data-testid="stMain"] [data-testid="stCaptionContainer"] { color: var(--muted); }
+.stMarkdown p strong { font-weight: 600; }
 
-/* kenar çubuğu (renkler config.toml [theme.sidebar]) */
+/* kenar çubuğu: iki temada da koyu grafit (renkler config.toml) */
 [data-testid="stSidebar"] { border-right: 1px solid var(--line); }
-[data-testid="stSidebar"] h3 { font-size: 0.8rem; font-weight: 600; color: var(--muted); margin: 1.4rem 0 0.15rem; }
+[data-testid="stSidebar"] h3 { font-size: 0.8rem; font-weight: 600; color: #8E9A93; margin: 1.4rem 0 0.15rem; }
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] { color: #8E9A93; }
 [data-testid="stSidebar"] [data-testid="stNumberInputStepDown"],
 [data-testid="stSidebar"] [data-testid="stNumberInputStepUp"] { display: none; }   /* koordinat kesilmesin */
-[data-testid="stSidebar"] [data-testid="stExpander"] details { background: var(--panel); border-color: var(--line); }
 [data-testid="stSidebarHeader"] { height: 2.5rem; padding-top: 0.5rem; padding-bottom: 0; }
 [data-testid="stSidebarUserContent"] { padding-top: 0.5rem; }
-.brand { display: flex; gap: 0.7rem; align-items: center; padding-bottom: 0.9rem; border-bottom: 1px solid var(--line); }
+.brand { display: flex; gap: 0.7rem; align-items: center; padding-bottom: 0.9rem; border-bottom: 1px solid #2E3732; }
 .brand .mark { flex: none; width: 2.3rem; height: 2.3rem; border-radius: 8px; background: var(--accent-deep);
                display: grid; place-items: center; }
 .brand .mark svg { width: 1.3rem; height: 1.3rem; stroke: #E8F3E1; }
-.brand b { display: block; color: var(--ink); font-size: 1rem; font-weight: 600; line-height: 1.2; }
-.brand small { display: block; color: var(--muted); font-size: 0.78rem; margin-top: 0.15rem; }
+.brand b { display: block; color: #E8ECE9; font-size: 1rem; font-weight: 600; line-height: 1.2; }
+.brand small { display: block; color: #8E9A93; font-size: 0.78rem; margin-top: 0.15rem; }
 
 /* başlık bandı: düz yüzey, gruplar ince çizgilerle ayrılır */
-.band { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1.3rem 1.5rem 1.3rem;
-        margin-bottom: 1.1rem; }
+.band { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1.3rem 1.5rem;
+        margin-bottom: 1.1rem; color: var(--ink); }
 .band-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .band h1 { font-size: 1.65rem; font-weight: 600; margin: 0; padding: 0; color: var(--ink); line-height: 1.2;
            letter-spacing: -0.015em; text-wrap: balance; }
 .band .meta { color: var(--muted); font-size: 0.88rem; margin-top: 0.3rem; }
 .pill { flex: none; display: inline-flex; align-items: center; padding: 0.4rem 0.85rem; border-radius: 999px;
         font-size: 0.85rem; font-weight: 600; white-space: nowrap; border: 1px solid; }
-.pill.ok { color: var(--accent); border-color: rgba(168, 213, 138, 0.45); background: rgba(168, 213, 138, 0.08); }
-.pill.no { color: #F4978E; border-color: rgba(240, 113, 103, 0.45); background: rgba(240, 113, 103, 0.08); }
+.pill.ok { color: var(--accent); border-color: var(--ok-line); background: var(--ok-bg); }
+.pill.no { color: var(--coral); border-color: var(--no-line); background: var(--no-bg); }
 .pill.wait { color: var(--ink-2); border-color: var(--line-2); font-weight: 500; }
 .band .hint { color: var(--muted); font-size: 0.92rem; margin: 1rem 0 0; }
 
@@ -112,24 +118,24 @@ h2, h3 { font-weight: 600 !important; letter-spacing: -0.01em; }
 [data-testid="stTab"][aria-selected="true"] { background: var(--ink); }
 [data-testid="stTab"][aria-selected="true"] p { color: var(--bg); font-weight: 600; }
 [data-testid="stTab"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-[data-baseweb="tab-panel"], [role="tabpanel"] { padding-top: 1.1rem; }
+[role="tabpanel"] { padding-top: 1.1rem; }
 
-/* yüzeyler: grafik, tablo, sayı, harita (gölge yok, ince çerçeve) */
+/* yüzeyler: grafik, sayı, harita (gölge yok, ince çerçeve) */
 [data-testid="stMain"] [data-testid="stPlotlyChart"], [data-testid="stMain"] [data-testid="stMetric"],
 [data-testid="stMain"] iframe[title*="folium"] { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
 [data-testid="stMain"] [data-testid="stDataFrame"] { border-radius: var(--radius); }
 [data-testid="stPlotlyChart"] { padding: 0.6rem 0.6rem 0.2rem; }
 [data-testid="stMetric"] { padding: 0.8rem 1rem; }
-[data-testid="stMetricLabel"] p { color: var(--muted); font-size: 0.82rem; }
-[data-testid="stMetricValue"] { font-family: "Fira Code", monospace; font-size: 1.35rem; color: var(--ink); }
+[data-testid="stMain"] [data-testid="stMetricLabel"] p { color: var(--muted); font-size: 0.82rem; }
+[data-testid="stMetricValue"] { font-family: "Fira Code", monospace; font-size: 1.35rem; }
 [data-testid="stMain"] [data-testid="stExpander"] details { background: var(--panel); border-color: var(--line); border-radius: var(--radius); }
 
 /* fizibilite kararı */
-.verdict { display: flex; gap: 0.75rem; align-items: baseline; color: var(--ink-2); border: 1px solid rgba(168, 213, 138, 0.4);
-           background: rgba(168, 213, 138, 0.06); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1rem; }
+.verdict { display: flex; gap: 0.75rem; align-items: baseline; color: var(--ink-2); border: 1px solid var(--ok-line);
+           background: var(--ok-bg); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1rem; }
 .verdict b { flex: none; color: var(--accent); }
-.verdict.no { border-color: rgba(240, 113, 103, 0.4); background: rgba(240, 113, 103, 0.06); }
-.verdict.no b { color: #F4978E; }
+.verdict.no { border-color: var(--no-line); background: var(--no-bg); }
+.verdict.no b { color: var(--coral); }
 
 /* boş durum */
 .empty { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.2rem 1.3rem 0.5rem; }
@@ -146,9 +152,9 @@ h2, h3 { font-weight: 600 !important; letter-spacing: -0.01em; }
 def fig_layout(fig: go.Figure, height: int = 300, **kw) -> go.Figure:
     fig.update_layout(height=height, margin=kw.pop("margin", dict(l=48, r=12, t=10, b=40)), showlegend=kw.pop("showlegend", False),
                       paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                      font=dict(family="Fira Sans, sans-serif", size=12, color="#C5CDC8"), **kw)
-    fig.update_xaxes(gridcolor="#2A332E", zeroline=False, linecolor="#3A453F")
-    fig.update_yaxes(gridcolor="#2A332E", zeroline=False)
+                      font=dict(family="Fira Sans, sans-serif", size=12), **kw)
+    fig.update_xaxes(zeroline=False)
+    fig.update_yaxes(zeroline=False)
     return fig
 
 
@@ -346,9 +352,10 @@ with tabs[0]:
         m = folium.Map(location=[ss.lat, ss.lon], zoom_start=9, tiles=None, control_scale=True,
                        scrollWheelZoom=False)   # sayfa kaydırılırken harita yakınlaşmasın
         esri = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/{}/MapServer/tile/{{z}}/{{y}}/{{x}}"
-        folium.TileLayer(esri.format("World_Dark_Gray_Base"), attr="Esri, HERE, Garmin, © OpenStreetMap").add_to(m)
-        folium.TileLayer(esri.format("World_Dark_Gray_Reference"), attr="Esri", overlay=True).add_to(m)
-        folium.CircleMarker([ss.lat, ss.lon], radius=8, color="#121614", weight=2, fill=True,
+        tone = "Light_Gray" if st.context.theme.type == "light" else "Dark_Gray"
+        folium.TileLayer(esri.format(f"World_{tone}_Base"), attr="Esri, HERE, Garmin, © OpenStreetMap").add_to(m)
+        folium.TileLayer(esri.format(f"World_{tone}_Reference"), attr="Esri", overlay=True).add_to(m)
+        folium.CircleMarker([ss.lat, ss.lon], radius=8, color="#FFFFFF", weight=2, fill=True,
                             fill_color=ACCENT, fill_opacity=1).add_to(m)
         out = st_folium(m, height=420, use_container_width=True, returned_objects=["last_clicked"], key="map")
         click = (out or {}).get("last_clicked")
@@ -496,8 +503,8 @@ with tabs[1]:
             rose = wr.wind_rose(ref, df[D["wd"]])
             fig = go.Figure(go.Barpolar(r=rose["freq_pct"], theta=rose["sector"], marker_color=ACCENT, opacity=0.85,
                                         customdata=rose["mean_ws"], hovertemplate="%{theta}: %{r:.1f} %<br>ort. %{customdata:.2f} m/s<extra></extra>"))
-            fig.update_layout(polar=dict(angularaxis=dict(direction="clockwise", rotation=90, gridcolor="#2A332E", linecolor="#3A453F"),
-                                         radialaxis=dict(ticksuffix="%", gridcolor="#2A332E", linecolor="#3A453F"), bgcolor="rgba(0,0,0,0)"))
+            fig.update_layout(polar=dict(angularaxis=dict(direction="clockwise", rotation=90),
+                                         radialaxis=dict(ticksuffix="%"), bgcolor="rgba(0,0,0,0)"))
             st.plotly_chart(fig_layout(fig, margin=dict(l=30, r=30, t=20, b=20)), use_container_width=True)
             top = rose.sort_values("freq_pct").iloc[-1]
             st.caption(f"Baskın yön {top['sector']} (%{top['freq_pct']:.1f}).")
@@ -509,7 +516,7 @@ with tabs[1]:
     with left:
         st.markdown("**Aylık ortalama hız**")
         mp = wr.monthly_profile(ref)
-        st.plotly_chart(fig_layout(go.Figure(go.Bar(x=[months[i - 1] for i in mp.index], y=mp, marker_color=[HILITE if v == mp.max() else "#6F9A63" for v in mp])),
+        st.plotly_chart(fig_layout(go.Figure(go.Bar(x=[months[i - 1] for i in mp.index], y=mp, marker_color=[HILITE if v == mp.max() else SOFT for v in mp])),
                                    260, yaxis_title="m/s"), use_container_width=True)
     with right:
         st.markdown("**Günlük profil (yerel saat)**")
@@ -583,7 +590,7 @@ with tabs[2]:
     with left:
         st.markdown("**Aylık net üretim**")
         mn = E["monthly_net"]
-        st.plotly_chart(fig_layout(go.Figure(go.Bar(x=[months[i - 1] for i in mn.index], y=mn, marker_color=[HILITE if v == mn.max() else "#6F9A63" for v in mn])),
+        st.plotly_chart(fig_layout(go.Figure(go.Bar(x=[months[i - 1] for i in mn.index], y=mn, marker_color=[HILITE if v == mn.max() else SOFT for v in mn])),
                                    260, yaxis_title="MWh"), use_container_width=True)
     with right:
         st.markdown("**AEP yöntem karşılaştırması**")

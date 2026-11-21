@@ -1,35 +1,56 @@
-# Tema: koyu grafit zemin, liken yeşili ana renk (SCADA kontrol odası ekranlarından esinlenildi).
+# İki tema: koyu (varsayılan) ve açık. Kenar çubuğu iki modda da koyu grafit kalır.
+# Ortak ayarlar [theme], moda özgü renkler [theme.dark] / [theme.light] altında.
 [theme]
 base = "dark"
-primaryColor = "#3E7B4B"
-backgroundColor = "#121614"
-secondaryBackgroundColor = "#1A1F1C"
-textColor = "#E8ECE9"
 font = "Fira Sans:https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&display=swap"
 headingFont = "Fira Sans:https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&display=swap"
 codeFont = "Fira Code:https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap"
 baseRadius = "8px"
 buttonRadius = "8px"
-borderColor = "#2E3732"
 showWidgetBorder = true
+metricValueFontWeight = 600
+
+[theme.dark]
+primaryColor = "#3E7B4B"
+backgroundColor = "#121614"
+secondaryBackgroundColor = "#1A1F1C"
+textColor = "#E8ECE9"
+borderColor = "#2E3732"
 dataframeBorderColor = "#2E3732"
 dataframeHeaderBackgroundColor = "#222925"
 dataframeHeaderTextColor = "#C5CDC8"
 linkColor = "#A8D58A"
-greenColor = "#A8D58A"
-redColor = "#F07167"
-orangeColor = "#E6B450"
 blueBackgroundColor = "#1F2A26"
 blueTextColor = "#C5CDC8"
-metricValueFontWeight = 600
 chartCategoricalColors = ["#A8D58A", "#E6B450", "#F07167", "#7AA2C4", "#8E9A93"]
 
-[theme.sidebar]
+[theme.dark.sidebar]
 backgroundColor = "#0E1210"
 secondaryBackgroundColor = "#1A1F1C"
 textColor = "#E8ECE9"
 primaryColor = "#3E7B4B"
 borderColor = "#2E3732"
+
+[theme.light]
+primaryColor = "#2F6B3E"
+backgroundColor = "#E9EDEA"
+secondaryBackgroundColor = "#F6F8F6"
+textColor = "#18201C"
+borderColor = "#D3DAD5"
+dataframeBorderColor = "#D3DAD5"
+dataframeHeaderBackgroundColor = "#E2E8E3"
+dataframeHeaderTextColor = "#3A463F"
+linkColor = "#2F6B3E"
+blueBackgroundColor = "#DDE7E0"
+blueTextColor = "#2A3A31"
+chartCategoricalColors = ["#3E7B4B", "#B7791F", "#C2453B", "#3C6E96", "#6B7A71"]
+
+[theme.light.sidebar]
+backgroundColor = "#14201A"
+secondaryBackgroundColor = "#1E2B24"
+textColor = "#E8ECE9"
+primaryColor = "#3E7B4B"
+borderColor = "#2E3B33"
 
 [browser]
 gatherUsageStats = false

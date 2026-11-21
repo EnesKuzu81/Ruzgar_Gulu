@@ -1,35 +1,65 @@
 <!doctype html>
-<html lang="tr">
+<html lang="tr" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Rüzgar Fizibilite</title>
 <style>
-  /* Uygulama Streamlit Community Cloud'da çalışır; bu sayfa onu tam ekran gösterir. */
-  :root { --bg: #121614; --text: #E8ECE9; --muted: #8E9A93; --line: #2E3732; --accent: #A8D58A; }
+  /* Uygulama Streamlit Community Cloud'da çalışır; bu sayfa onu tam ekran gösterir ve açık/koyu temayı seçtirir. */
+  :root { --bar: #0E1210; --text: #E8ECE9; --muted: #8E9A93; --line: #2E3732; --accent: #A8D58A; --seg: #1A1F1C; --on: #E8ECE9; --on-text: #121614; }
+  html[data-theme="light"] { --bar: #F6F8F6; --text: #18201C; --muted: #5B6860; --line: #D3DAD5; --accent: #2F6B3E; --seg: #E9EDEA; --on: #18201C; --on-text: #F6F8F6; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+  html, body { margin: 0; height: 100%; background: var(--bar); color: var(--text);
                font: 14px/1.4 "Segoe UI", system-ui, sans-serif; }
-  .bar { height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
-         padding: 0 16px; border-bottom: 1px solid var(--line); background: #0E1210; }
+  .bar { height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+         padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--bar); }
   .bar b { font-weight: 600; }
-  .bar span { color: var(--muted); font-size: 12px; }
+  .bar span { color: var(--muted); font-size: 12px; margin-left: 6px; }
+  .right { display: flex; align-items: center; gap: 14px; }
+  .seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--seg); border: 1px solid var(--line); border-radius: 8px; }
+  .seg button { border: 0; background: transparent; color: var(--text); font: inherit; font-size: 12.5px; font-weight: 500;
+                padding: 4px 12px; border-radius: 6px; cursor: pointer; transition: background-color .18s ease, color .18s ease; }
+  .seg button[aria-pressed="true"] { background: var(--on); color: var(--on-text); font-weight: 600; }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .bar a { color: var(--accent); text-decoration: none; font-weight: 500; white-space: nowrap; }
-  iframe { display: block; width: 100%; height: calc(100% - 40px); border: 0; }
-  @media (max-width: 600px) { .bar span { display: none; } }
+  iframe { display: block; width: 100%; height: calc(100% - 44px); border: 0; }
+  @media (max-width: 640px) { .bar span, .bar a { display: none; } }
+  @media (prefers-reduced-motion: reduce) { .seg button { transition: none; } }
 </style>
 </head>
 <body>
   <div class="bar">
-    <div><b>Rüzgar Enerjisi Fizibilite</b> <span>İzmir Bakırçay Üniversitesi, EEM Rüzgar Enerjisi dersi</span></div>
-    <a id="open" href="#" target="_blank" rel="noopener">Yeni sekmede aç</a>
+    <div><b>Rüzgar Enerjisi Fizibilite</b><span>İzmir Bakırçay Üniversitesi, EEM Rüzgar Enerjisi dersi</span></div>
+    <div class="right">
+      <div class="seg" role="group" aria-label="Tema">
+        <button type="button" data-theme="light">Açık</button>
+        <button type="button" data-theme="dark">Koyu</button>
+      </div>
+      <a id="open" href="#" target="_blank" rel="noopener">Yeni sekmede aç</a>
+    </div>
   </div>
   <iframe id="app" title="Rüzgar Fizibilite uygulaması" allow="clipboard-write"></iframe>
 <script>
-  // Streamlit Cloud adresi (dağıtımda seçilen alt alan adı)
+  // Streamlit Cloud adresi (dağıtımda verilen alt alan adı)
   const APP = "https://ruzgargulu-eybj63qlqvfgnsakadcjn3.streamlit.app";
-  document.getElementById("app").src = APP + "/?embed=true&ornek=1";
-  document.getElementById("open").href = APP + "/?ornek=1";
+  const frame = document.getElementById("app");
+  const buttons = document.querySelectorAll(".seg button");
+
+  function apply(theme, reload) {
+    document.documentElement.dataset.theme = theme;
+    buttons.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.theme === theme)));
+    try { localStorage.setItem("ruzgar-tema", theme); } catch (e) {}
+    const opt = theme === "light" ? "light_theme" : "dark_theme";   // Streamlit embed_options
+    if (reload) frame.src = APP + "/?embed=true&embed_options=" + opt + "&ornek=1";
+    document.getElementById("open").href = APP + "/?ornek=1";
+  }
+
+  let saved = null;
+  try { saved = localStorage.getItem("ruzgar-tema"); } catch (e) {}
+  apply(saved || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"), true);
+  buttons.forEach(b => b.addEventListener("click", () => {
+    if (b.getAttribute("aria-pressed") !== "true") apply(b.dataset.theme, true);
+  }));
 </script>
 </body>
 </html>
