@@ -1,32 +1,35 @@
-# Tema: gece laciverti kenar çubuğu, açık içerik alanı, gökyüzü mavisi ana renk.
+# Tema: koyu grafit zemin, liken yeşili ana renk (SCADA kontrol odası ekranlarından esinlenildi).
 [theme]
-base = "light"
-primaryColor = "#0369A1"
-backgroundColor = "#EEF3F8"
-secondaryBackgroundColor = "#FFFFFF"
-textColor = "#0F172A"
+base = "dark"
+primaryColor = "#3E7B4B"
+backgroundColor = "#121614"
+secondaryBackgroundColor = "#1A1F1C"
+textColor = "#E8ECE9"
 font = "Fira Sans:https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&display=swap"
 headingFont = "Fira Sans:https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&display=swap"
 codeFont = "Fira Code:https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap"
-baseRadius = "10px"
+baseRadius = "8px"
 buttonRadius = "8px"
-borderColor = "#DCE3EC"
+borderColor = "#2E3732"
 showWidgetBorder = true
-dataframeBorderColor = "#E2E8F0"
-dataframeHeaderBackgroundColor = "#F1F5F9"
-dataframeHeaderTextColor = "#334155"
-linkColor = "#0369A1"
-blueBackgroundColor = "#E0F2FE"
-blueTextColor = "#075985"
+dataframeBorderColor = "#2E3732"
+dataframeHeaderBackgroundColor = "#222925"
+dataframeHeaderTextColor = "#C5CDC8"
+linkColor = "#A8D58A"
+greenColor = "#A8D58A"
+redColor = "#F07167"
+orangeColor = "#E6B450"
+blueBackgroundColor = "#1F2A26"
+blueTextColor = "#C5CDC8"
 metricValueFontWeight = 600
-chartCategoricalColors = ["#0369A1", "#F59E0B", "#E5484D", "#0EA5E9", "#64748B"]
+chartCategoricalColors = ["#A8D58A", "#E6B450", "#F07167", "#7AA2C4", "#8E9A93"]
 
 [theme.sidebar]
-backgroundColor = "#0B1726"
-secondaryBackgroundColor = "#152A42"
-textColor = "#E2E8F0"
-primaryColor = "#0284C7"
-borderColor = "#24405F"
+backgroundColor = "#0E1210"
+secondaryBackgroundColor = "#1A1F1C"
+textColor = "#E8ECE9"
+primaryColor = "#3E7B4B"
+borderColor = "#2E3732"
 
 [browser]
 gatherUsageStats = false

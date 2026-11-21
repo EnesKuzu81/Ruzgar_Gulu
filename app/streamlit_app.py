@@ -29,19 +29,19 @@ from core.data_sources import (clean_wind_data, default_year_range, fetch_nasa_p
 
 st.set_page_config(page_title="Rüzgar Fizibilite", page_icon=None, layout="wide")
 
-# grafik paleti: gökyüzü mavisi ana seri, açık mavi ikincil, mercan kayıp/negatif, kehribar vurgu
-ACCENT, NEG, BAR, MUTED, HILITE = "#0369A1", "#E5484D", "#BAE6FD", "#94A3B8", "#F59E0B"
+# grafik paleti (koyu zemin): liken yeşili ana seri, sönük yeşil ikincil, çelik mavisi karşılaştırma,
+# mercan kayıp/negatif, hardal en yüksek değer
+ACCENT, NEG, BAR, MUTED, HILITE = "#A8D58A", "#F07167", "#4F6B58", "#7AA2C4", "#E6B450"
 CFG = load_defaults()
 
 # ---------------------------------------------------------------- stil
 st.markdown("""
 <style>
 :root {
-  --ink: #0F172A; --ink-2: #334155; --muted: #475569; --line: #DCE3EC; --surface: #FFFFFF; --bg: #EEF3F8;
-  --night: #0B1726; --night-2: #12304D; --sky: #38BDF8; --sky-ink: #0369A1; --sky-soft: #E0F2FE;
-  --amber: #F59E0B; --coral: #E5484D; --coral-soft: #FDECEC; --mint: #0F8A5F; --mint-soft: #E3F6EE;
-  --radius: 12px;
-  --shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 6px 20px rgba(15, 23, 42, 0.05);
+  --bg: #121614; --panel: #1A1F1C; --panel-2: #222925; --line: #2E3732; --line-2: #3A453F;
+  --ink: #E8ECE9; --ink-2: #C5CDC8; --muted: #8E9A93;
+  --accent: #A8D58A; --accent-deep: #3E7B4B; --amber: #E6B450; --coral: #F07167; --steel: #7AA2C4;
+  --radius: 10px;
 }
 #MainMenu, footer, [data-testid="stMainMenu"], [data-testid="stAppDeployButton"], [data-testid="stDecoration"] { display: none; }
 [data-testid="stHeader"] { background: transparent; }
@@ -49,88 +49,90 @@ st.markdown("""
 .block-container { padding-top: 1.2rem; max-width: 1440px; }
 h2, h3 { font-weight: 600 !important; letter-spacing: -0.01em; }
 .note { color: var(--muted); font-size: 0.8rem; }
+[data-testid="stCaptionContainer"] { color: var(--muted); }
+.stMarkdown p strong { color: var(--ink); font-weight: 600; }
 
 /* kenar çubuğu (renkler config.toml [theme.sidebar]) */
-[data-testid="stSidebar"] h3 { font-size: 0.82rem; font-weight: 600; color: #7DD3FC; margin: 1.4rem 0 0.15rem; }
-[data-testid="stSidebar"] [data-testid="stCaptionContainer"] { color: #94A3B8; }
+[data-testid="stSidebar"] { border-right: 1px solid var(--line); }
+[data-testid="stSidebar"] h3 { font-size: 0.8rem; font-weight: 600; color: var(--muted); margin: 1.4rem 0 0.15rem; }
 [data-testid="stSidebar"] [data-testid="stNumberInputStepDown"],
 [data-testid="stSidebar"] [data-testid="stNumberInputStepUp"] { display: none; }   /* koordinat kesilmesin */
-.brand { display: flex; gap: 0.7rem; align-items: center; padding-bottom: 0.9rem; border-bottom: 1px solid #24405F; }
-.brand .mark { flex: none; width: 2.4rem; height: 2.4rem; border-radius: 10px; background: #0369A1;
-               display: grid; place-items: center; }
-.brand .mark svg { width: 1.35rem; height: 1.35rem; stroke: #FFFFFF; }
-.brand b { display: block; color: #F8FAFC; font-size: 1rem; font-weight: 600; line-height: 1.2; }
-.brand small { display: block; color: #94A3B8; font-size: 0.78rem; margin-top: 0.15rem; }
-
-/* başlık bandı: proje, durum ve ana sonuçlar */
-.band { background: linear-gradient(135deg, var(--night) 0%, var(--night-2) 100%); color: #F8FAFC;
-        border-radius: 16px; padding: 1.3rem 1.5rem 1.4rem; margin-bottom: 1.1rem; box-shadow: var(--shadow); }
-.band-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
-.band h1 { font-size: 1.65rem; font-weight: 600; margin: 0; padding: 0; color: #FFFFFF; line-height: 1.2;
-           letter-spacing: -0.015em; text-wrap: balance; }
-.band .meta { color: #A5B4C8; font-size: 0.88rem; margin-top: 0.3rem; }
-.pill { flex: none; display: inline-flex; align-items: center; padding: 0.4rem 0.85rem; border-radius: 999px;
-        font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
-.pill.ok { background: rgba(52, 211, 153, 0.16); color: #6EE7B7; box-shadow: inset 0 0 0 1px rgba(110, 231, 183, 0.35); }
-.pill.no { background: rgba(248, 113, 113, 0.16); color: #FCA5A5; box-shadow: inset 0 0 0 1px rgba(252, 165, 165, 0.35); }
-.pill.wait { background: rgba(255, 255, 255, 0.08); color: #CBD5E1; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18); font-weight: 500; }
-.band .hint { color: #A5B4C8; font-size: 0.92rem; margin: 1rem 0 0; }
-
-.kgroups { display: grid; grid-template-columns: 2.1fr 2.1fr 3.8fr; gap: 0.75rem; margin-top: 1.15rem; }
-.kg { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.10); border-radius: var(--radius);
-      padding: 0.7rem 0.95rem 0.8rem; min-width: 0; }
-.kg > span { display: block; font-size: 0.78rem; font-weight: 600; color: #7DD3FC; margin-bottom: 0.45rem; }
-.kcells { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0.75rem; }
-.kcell { min-width: 0; }
-.kcell small { display: block; font-size: 0.75rem; color: #A5B4C8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kcell b { font-family: "Fira Code", monospace; font-size: 1.35rem; font-weight: 600; color: #FFFFFF; letter-spacing: -0.03em;
-           white-space: nowrap; }
-.kcell i { display: block; font-style: normal; font-size: 0.75rem; color: #A5B4C8; margin-top: 0.1rem; white-space: nowrap; }
-.kcell.neg b { color: #FF9AA2; }
-.kcell.key b { color: #FCD34D; }
-@media (max-width: 1100px) { .kgroups { grid-template-columns: 1fr 1fr; } .kg.econ { grid-column: 1 / -1; } }
-@media (max-width: 640px)  { .kgroups { grid-template-columns: 1fr; } .kcells { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
-                             .band-top { flex-direction: column; } }
-
-/* sekmeler: bölümlü kontrol */
-[data-testid="stTabs"] [role="tablist"] { gap: 0.25rem; background: var(--surface); border-radius: 12px; padding: 0.3rem;
-    box-shadow: var(--shadow); width: fit-content; max-width: 100%; overflow-x: auto; border: 0; }
-[data-testid="stTabs"] [role="tablist"]::before, [data-testid="stTabs"] [role="tablist"]::after { display: none; }
-[data-testid="stTab"] .react-aria-SelectionIndicator { display: none; }
-[data-testid="stTab"] { border-radius: 9px; padding: 0.5rem 1.05rem; cursor: pointer;
-    transition: background-color 0.18s ease, color 0.18s ease; }
-[data-testid="stTab"] p { font-size: 0.93rem; font-weight: 500; color: var(--ink-2); margin: 0; }
-[data-testid="stTab"]:hover { background: var(--sky-soft); }
-[data-testid="stTab"][aria-selected="true"] { background: var(--night); }
-[data-testid="stTab"][aria-selected="true"] p { color: #FFFFFF; }
-[data-testid="stTab"]:focus-visible { outline: 2px solid var(--sky-ink); outline-offset: 2px; }
-
-/* kartlar: grafik, tablo, sayı, harita */
-[data-testid="stMain"] [data-testid="stPlotlyChart"], [data-testid="stMain"] [data-testid="stDataFrame"],
-[data-testid="stMain"] [data-testid="stMetric"], [data-testid="stMain"] iframe[title*="folium"] {
-  background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); }
-[data-testid="stPlotlyChart"] { padding: 0.6rem 0.6rem 0.2rem; }
-[data-testid="stMetric"] { padding: 0.8rem 1rem; border: 1px solid var(--line); }
-[data-testid="stMetricLabel"] p { color: var(--muted); font-size: 0.82rem; }
-[data-testid="stMetricValue"] { font-family: "Fira Code", monospace; font-size: 1.35rem; color: var(--ink); }
-[data-testid="stMain"] [data-testid="stExpander"] details { background: var(--surface); border-radius: var(--radius);
-    box-shadow: var(--shadow); border-color: var(--line); }
-[data-testid="stSidebar"] [data-testid="stExpander"] details { background: #12243A; border-color: #24405F; }
-[data-testid="stSidebar"] [data-testid="stExpander"] summary p { color: #E2E8F0; }
-[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] { background: #0F2033; }
+[data-testid="stSidebar"] [data-testid="stExpander"] details { background: var(--panel); border-color: var(--line); }
 [data-testid="stSidebarHeader"] { height: 2.5rem; padding-top: 0.5rem; padding-bottom: 0; }
 [data-testid="stSidebarUserContent"] { padding-top: 0.5rem; }
-.stMarkdown p strong { color: var(--ink); }
+.brand { display: flex; gap: 0.7rem; align-items: center; padding-bottom: 0.9rem; border-bottom: 1px solid var(--line); }
+.brand .mark { flex: none; width: 2.3rem; height: 2.3rem; border-radius: 8px; background: var(--accent-deep);
+               display: grid; place-items: center; }
+.brand .mark svg { width: 1.3rem; height: 1.3rem; stroke: #E8F3E1; }
+.brand b { display: block; color: var(--ink); font-size: 1rem; font-weight: 600; line-height: 1.2; }
+.brand small { display: block; color: var(--muted); font-size: 0.78rem; margin-top: 0.15rem; }
+
+/* başlık bandı: düz yüzey, gruplar ince çizgilerle ayrılır */
+.band { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1.3rem 1.5rem 1.3rem;
+        margin-bottom: 1.1rem; }
+.band-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.band h1 { font-size: 1.65rem; font-weight: 600; margin: 0; padding: 0; color: var(--ink); line-height: 1.2;
+           letter-spacing: -0.015em; text-wrap: balance; }
+.band .meta { color: var(--muted); font-size: 0.88rem; margin-top: 0.3rem; }
+.pill { flex: none; display: inline-flex; align-items: center; padding: 0.4rem 0.85rem; border-radius: 999px;
+        font-size: 0.85rem; font-weight: 600; white-space: nowrap; border: 1px solid; }
+.pill.ok { color: var(--accent); border-color: rgba(168, 213, 138, 0.45); background: rgba(168, 213, 138, 0.08); }
+.pill.no { color: #F4978E; border-color: rgba(240, 113, 103, 0.45); background: rgba(240, 113, 103, 0.08); }
+.pill.wait { color: var(--ink-2); border-color: var(--line-2); font-weight: 500; }
+.band .hint { color: var(--muted); font-size: 0.92rem; margin: 1rem 0 0; }
+
+.kgroups { display: grid; grid-template-columns: 2.1fr 2.1fr 3.8fr; margin-top: 1.2rem; padding-top: 1.1rem;
+           border-top: 1px solid var(--line); }
+.kg { min-width: 0; padding: 0 1.2rem; }
+.kg:first-child { padding-left: 0; }
+.kg + .kg { border-left: 1px solid var(--line); }
+.kg > span { display: block; font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-bottom: 0.5rem; }
+.kcells { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0.75rem; }
+.kcell { min-width: 0; }
+.kcell small { display: block; font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kcell b { font-family: "Fira Code", monospace; font-size: 1.4rem; font-weight: 600; color: var(--ink); letter-spacing: -0.03em;
+           white-space: nowrap; }
+.kcell i { display: block; font-style: normal; font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; white-space: nowrap; }
+.kcell.neg b { color: var(--coral); }
+.kcell.key b { color: var(--amber); }
+@media (max-width: 1100px) { .kgroups { grid-template-columns: 1fr 1fr; row-gap: 1rem; }
+                             .kg.econ { grid-column: 1 / -1; border-left: 0; padding-left: 0; } }
+@media (max-width: 640px)  { .kgroups { grid-template-columns: 1fr; } .kg + .kg { border-left: 0; padding-left: 0; }
+                             .kcells { grid-auto-flow: row; grid-template-columns: 1fr 1fr; } .band-top { flex-direction: column; } }
+
+/* sekmeler: bölümlü kontrol, seçili sekme ters renk */
+[data-testid="stTabs"] [role="tablist"] { gap: 0.2rem; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 0.25rem; width: fit-content; max-width: 100%; overflow-x: auto; }
+[data-testid="stTabs"] [role="tablist"]::before, [data-testid="stTabs"] [role="tablist"]::after { display: none; }
+[data-testid="stTab"] .react-aria-SelectionIndicator { display: none; }
+[data-testid="stTab"] { border-radius: 7px; padding: 0.5rem 1.05rem; cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease; }
+[data-testid="stTab"] p { font-size: 0.93rem; font-weight: 500; color: var(--ink-2); margin: 0; }
+[data-testid="stTab"]:hover { background: var(--panel-2); }
+[data-testid="stTab"][aria-selected="true"] { background: var(--ink); }
+[data-testid="stTab"][aria-selected="true"] p { color: var(--bg); font-weight: 600; }
+[data-testid="stTab"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[data-baseweb="tab-panel"], [role="tabpanel"] { padding-top: 1.1rem; }
+
+/* yüzeyler: grafik, tablo, sayı, harita (gölge yok, ince çerçeve) */
+[data-testid="stMain"] [data-testid="stPlotlyChart"], [data-testid="stMain"] [data-testid="stMetric"],
+[data-testid="stMain"] iframe[title*="folium"] { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+[data-testid="stMain"] [data-testid="stDataFrame"] { border-radius: var(--radius); }
+[data-testid="stPlotlyChart"] { padding: 0.6rem 0.6rem 0.2rem; }
+[data-testid="stMetric"] { padding: 0.8rem 1rem; }
+[data-testid="stMetricLabel"] p { color: var(--muted); font-size: 0.82rem; }
+[data-testid="stMetricValue"] { font-family: "Fira Code", monospace; font-size: 1.35rem; color: var(--ink); }
+[data-testid="stMain"] [data-testid="stExpander"] details { background: var(--panel); border-color: var(--line); border-radius: var(--radius); }
 
 /* fizibilite kararı */
-.verdict { display: flex; gap: 0.75rem; align-items: baseline; background: var(--mint-soft); color: var(--ink);
-           border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1rem; }
-.verdict b { flex: none; color: var(--mint); }
-.verdict.no { background: var(--coral-soft); }
-.verdict.no b { color: #B42318; }
+.verdict { display: flex; gap: 0.75rem; align-items: baseline; color: var(--ink-2); border: 1px solid rgba(168, 213, 138, 0.4);
+           background: rgba(168, 213, 138, 0.06); border-radius: var(--radius); padding: 0.85rem 1.1rem; margin-bottom: 1rem; }
+.verdict b { flex: none; color: var(--accent); }
+.verdict.no { border-color: rgba(240, 113, 103, 0.4); background: rgba(240, 113, 103, 0.06); }
+.verdict.no b { color: #F4978E; }
 
 /* boş durum */
-.empty { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.2rem 1.3rem 0.5rem; }
+.empty { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.2rem 1.3rem 0.5rem; }
 .empty h4 { margin: 0 0 0.55rem; font-size: 1.05rem; font-weight: 600; color: var(--ink); }
 .empty ol { margin: 0 0 0.6rem 1.1rem; padding: 0; color: var(--ink-2); font-size: 0.92rem; line-height: 1.65; }
 .empty p { color: var(--muted); font-size: 0.86rem; margin: 0 0 0.6rem; }
@@ -144,9 +146,9 @@ h2, h3 { font-weight: 600 !important; letter-spacing: -0.01em; }
 def fig_layout(fig: go.Figure, height: int = 300, **kw) -> go.Figure:
     fig.update_layout(height=height, margin=kw.pop("margin", dict(l=48, r=12, t=10, b=40)), showlegend=kw.pop("showlegend", False),
                       paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                      font=dict(family="Fira Sans, sans-serif", size=12, color="#334155"), **kw)
-    fig.update_xaxes(gridcolor="#E2E8F0", zeroline=False, linecolor="#CBD5E1")
-    fig.update_yaxes(gridcolor="#E2E8F0", zeroline=False)
+                      font=dict(family="Fira Sans, sans-serif", size=12, color="#C5CDC8"), **kw)
+    fig.update_xaxes(gridcolor="#2A332E", zeroline=False, linecolor="#3A453F")
+    fig.update_yaxes(gridcolor="#2A332E", zeroline=False)
     return fig
 
 
@@ -341,9 +343,13 @@ with tabs[0]:
     left, right = st.columns([1.5, 1])
     with left:
         st.markdown("**Konum**")
-        m = folium.Map(location=[ss.lat, ss.lon], zoom_start=9, tiles="OpenStreetMap", control_scale=True,
+        m = folium.Map(location=[ss.lat, ss.lon], zoom_start=9, tiles=None, control_scale=True,
                        scrollWheelZoom=False)   # sayfa kaydırılırken harita yakınlaşmasın
-        folium.CircleMarker([ss.lat, ss.lon], radius=7, color=ACCENT, fill=True, fill_opacity=0.9).add_to(m)
+        esri = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/{}/MapServer/tile/{{z}}/{{y}}/{{x}}"
+        folium.TileLayer(esri.format("World_Dark_Gray_Base"), attr="Esri, HERE, Garmin, © OpenStreetMap").add_to(m)
+        folium.TileLayer(esri.format("World_Dark_Gray_Reference"), attr="Esri", overlay=True).add_to(m)
+        folium.CircleMarker([ss.lat, ss.lon], radius=8, color="#121614", weight=2, fill=True,
+                            fill_color=ACCENT, fill_opacity=1).add_to(m)
         out = st_folium(m, height=420, use_container_width=True, returned_objects=["last_clicked"], key="map")
         click = (out or {}).get("last_clicked")
         if click and (round(click["lat"], 4), round(click["lng"], 4)) != (round(ss.lat, 4), round(ss.lon, 4)):
@@ -490,8 +496,8 @@ with tabs[1]:
             rose = wr.wind_rose(ref, df[D["wd"]])
             fig = go.Figure(go.Barpolar(r=rose["freq_pct"], theta=rose["sector"], marker_color=ACCENT, opacity=0.85,
                                         customdata=rose["mean_ws"], hovertemplate="%{theta}: %{r:.1f} %<br>ort. %{customdata:.2f} m/s<extra></extra>"))
-            fig.update_layout(polar=dict(angularaxis=dict(direction="clockwise", rotation=90),
-                                         radialaxis=dict(ticksuffix="%", gridcolor="#E2E8F0"), bgcolor="rgba(0,0,0,0)"))
+            fig.update_layout(polar=dict(angularaxis=dict(direction="clockwise", rotation=90, gridcolor="#2A332E", linecolor="#3A453F"),
+                                         radialaxis=dict(ticksuffix="%", gridcolor="#2A332E", linecolor="#3A453F"), bgcolor="rgba(0,0,0,0)"))
             st.plotly_chart(fig_layout(fig, margin=dict(l=30, r=30, t=20, b=20)), use_container_width=True)
             top = rose.sort_values("freq_pct").iloc[-1]
             st.caption(f"Baskın yön {top['sector']} (%{top['freq_pct']:.1f}).")
@@ -503,7 +509,7 @@ with tabs[1]:
     with left:
         st.markdown("**Aylık ortalama hız**")
         mp = wr.monthly_profile(ref)
-        st.plotly_chart(fig_layout(go.Figure(go.Bar(x=[months[i - 1] for i in mp.index], y=mp, marker_color=[HILITE if v == mp.max() else ACCENT for v in mp])),
+        st.plotly_chart(fig_layout(go.Figure(go.Bar(x=[months[i - 1] for i in mp.index], y=mp, marker_color=[HILITE if v == mp.max() else "#6F9A63" for v in mp])),
                                    260, yaxis_title="m/s"), use_container_width=True)
     with right:
         st.markdown("**Günlük profil (yerel saat)**")
@@ -577,7 +583,7 @@ with tabs[2]:
     with left:
         st.markdown("**Aylık net üretim**")
         mn = E["monthly_net"]
-        st.plotly_chart(fig_layout(go.Figure(go.Bar(x=[months[i - 1] for i in mn.index], y=mn, marker_color=[HILITE if v == mn.max() else ACCENT for v in mn])),
+        st.plotly_chart(fig_layout(go.Figure(go.Bar(x=[months[i - 1] for i in mn.index], y=mn, marker_color=[HILITE if v == mn.max() else "#6F9A63" for v in mn])),
                                    260, yaxis_title="MWh"), use_container_width=True)
     with right:
         st.markdown("**AEP yöntem karşılaştırması**")
